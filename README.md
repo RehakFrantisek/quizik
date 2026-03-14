@@ -46,3 +46,14 @@ See `ARCHITECTURE_SPEC.md` for full details.
 - `make shell-api`: Open a Bash shell in the API container.
 - `make test`: Run backend tests and frontend tests.
 - `make lint` / `make format`: Code quality checks.
+
+## Upcoming Phase Guidance (Architecture/Product Proposals)
+
+For next-phase planning and implementation order, start with:
+- `ARCHITECTURE_SPEC.md` (see Section 13: strategic evolution)
+- `docs/QUIZIK_GAMIFICATION_AND_CLASSROOM_MODEL.md`
+- `docs/ROADMAP_GAMIFICATION_AUTH_SCHOOLS.md`
+- `docs/DOMAIN_MODEL_NEXT_PHASE.md`
+- `docs/adr/` (ADR 001-004)
+
+These documents define the canonical terminology (`template`, `clone`, `version`, `session`, `attempt`) and the recommended implementation sequence for auth, ownership, sessions, review, anti-cheat telemetry, and optional minigames.

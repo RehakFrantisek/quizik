@@ -620,3 +620,72 @@ All endpoints prefixed with `/api/v1`.
 | **2 — Quiz Flow** | 4–6 | Editor, publishing, player runtime, scoring, analytics |
 | **3 — Import** | 7–9 | XLSX/CSV/DOCX import, review UI, rate limiting, CSV export |
 | **4 — Hardening** | 10–12 | Tests, PDF import, performance tuning, prod builds |
+
+---
+
+## 13. Strategic Evolution: Classroom-Ready Multi-User Architecture
+
+This section defines the next evolution path from single-admin MVP to multi-user classroom-ready architecture while preserving current public-quiz simplicity.
+
+### 13.1 Transition Goal
+- Move from dev-only static-admin behavior to authenticated multi-user ownership.
+- Keep monolith architecture (Next.js + FastAPI + Postgres + Redis/Celery) and evolve schema incrementally.
+- Support both public share links and teacher-owned classroom workflows.
+
+### 13.2 Canonical Runtime Model
+The platform distinguishes five separate concepts:
+
+1. **Quiz Template**
+   - Editable source quiz owned by a teacher/workspace.
+2. **Quiz Clone**
+   - A copied template with independent ownership and edits.
+3. **Quiz Version**
+   - Immutable snapshot of template content used for reproducible sessions.
+4. **Published Session (Run)**
+   - A concrete delivery instance (link/time window/rules/leaderboard scope) tied to one version.
+5. **Participant Attempt**
+   - One learner run submitted against one session.
+
+### 13.3 Why Leaderboard Must Belong to Session
+Leaderboards are context-specific and must not be attached directly to template identity.
+
+Reasons:
+- one template can be reused across classes/periods,
+- cloned templates should not inherit old ranking history,
+- moderation actions (remove participant, clear board) should affect exactly one run context.
+
+### 13.4 Why Gamification Must Be Separated from Academic Scoring
+Gamification is engagement support, not educational assessment.
+
+Rules:
+- maintain `knowledge_score` and `engagement_score` separately,
+- teachers can disable gamification entirely,
+- leaderboard can be disabled independently from grading,
+- minigames must not silently alter academic correctness outcomes.
+
+### 13.5 Why Anti-Cheat Should Be Telemetry-Based (MVP)
+Anti-cheat in early phases should prioritize observability and fairness.
+
+Approach:
+- capture risk signals (tab switches, inactivity anomalies, suspicious timing),
+- show signals to teachers in attempt review,
+- avoid automatic disqualification by default.
+
+Rationale:
+- reduces false positives,
+- accommodates accessibility and real-world device/network constraints,
+- preserves teacher judgment and auditability.
+
+### 13.6 MVP-Compatible Evolution Constraints
+- Preserve existing public share flow while introducing session abstraction behind compatibility endpoints.
+- Use additive migrations with backfill (avoid destructive rewrites).
+- Keep optional features (gamification, anti-cheat strictness, advanced review) feature-flagged in early rollout.
+
+### 13.7 Recommended Next Implementation Order
+1. Real authentication.
+2. Ownership model.
+3. Clone + session model.
+4. Review/leaderboard improvements.
+5. Fuzzy open answers.
+6. Anti-cheat telemetry.
+7. First minigames.
