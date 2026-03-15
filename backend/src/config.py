@@ -12,8 +12,12 @@ class Settings(BaseSettings):
 
     # ── Auth ──
     secret_key: str = "change-me-in-production"
-    access_token_expire_minutes: int = 15
+    access_token_expire_minutes: int = 60  # 1h default for dev convenience
     refresh_token_expire_days: int = 7
+
+    # ── Google OAuth (optional, leave empty to disable) ──
+    google_client_id: str = ""
+    google_client_secret: str = ""
 
     # ── CORS ──
     frontend_url: str = "http://localhost:3100"

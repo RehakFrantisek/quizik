@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
 import { QuestionForm } from "@/components/editor/QuestionForm";
-import { ArrowLeft, Plus, Check } from "lucide-react";
+import { ArrowLeft, Plus, Check, ChevronUp, ChevronDown } from "lucide-react";
 import Link from "next/link";
+import { useLang } from "@/contexts/LangContext";
 
 interface Option {
   id: string;
@@ -32,10 +33,15 @@ interface Quiz {
 
 export default function QuizEditor() {
   const { id } = useParams();
-  
+  const { t } = useLang();
+
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [statusChanging, setStatusChanging] = useState(false);
+  const [infoMsg, setInfoMsg] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [statusConfirm, setStatusConfirm] = useState<{ newStatus: string; confirmKey: string } | null>(null);
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   const [isAddingQuestion, setIsAddingQuestion] = useState(false);
 
@@ -76,13 +82,41 @@ export default function QuizEditor() {
     }
   };
 
+  const changeStatus = async (newStatus: string, confirmKey: string) => {
+    setStatusConfirm({ newStatus, confirmKey });
+  };
+
+  const executeStatusChange = async () => {
+    if (!statusConfirm) return;
+    const newStatus = statusConfirm.newStatus;
+    setStatusConfirm(null);
+    setStatusChanging(true);
+    try {
+      await apiClient.patch(`/quizzes/${id}`, { status: newStatus });
+      loadQuiz();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to change status");
+    } finally {
+      setStatusChanging(false);
+    }
+  };
+
   const publishQuiz = async () => {
     try {
       await apiClient.post(`/quizzes/${id}/publish`, {});
-      alert("Quiz published!");
       loadQuiz();
+      setInfoMsg(t("editor.publishedSuccess"));
     } catch (err: unknown) {
-      alert(`Publish failed: ${err instanceof Error ? err.message : String(err)}`);
+      let msg = err instanceof Error ? err.message : String(err);
+      try {
+        const parsed = JSON.parse(msg);
+        if (parsed.error?.toLowerCase().includes("no questions")) {
+          msg = t("editor.publishErrorNoQuestions");
+        } else {
+          msg = parsed.error ?? msg;
+        }
+      } catch { /* not JSON, use as-is */ }
+      setInfoMsg(msg);
     }
   };
 
@@ -103,109 +137,218 @@ export default function QuizEditor() {
   };
 
   const deleteQuestion = async (qId: string) => {
-    if (!confirm("Delete question?")) return;
+    setDeleteConfirmId(qId);
+  };
+
+  const confirmDeleteQuestion = async () => {
+    if (!deleteConfirmId) return;
     try {
-      await apiClient.delete(`/quizzes/${id}/questions/${qId}`);
+      await apiClient.delete(`/quizzes/${id}/questions/${deleteConfirmId}`);
+      setDeleteConfirmId(null);
       loadQuiz();
     } catch (err) {
       console.error(err);
-      alert("Failed to delete question");
+      setDeleteConfirmId(null);
+      setInfoMsg("Failed to delete question");
     }
   };
 
-  if (loading) return <div className="p-8">Loading editor...</div>;
-  if (!quiz) return <div className="p-8 text-red-500">Quiz not found</div>;
+  const moveQuestion = async (idx: number, direction: "up" | "down") => {
+    if (!quiz) return;
+    const qs = [...quiz.questions];
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= qs.length) return;
+    [qs[idx], qs[swapIdx]] = [qs[swapIdx], qs[idx]];
+    setQuiz({ ...quiz, questions: qs });
+    try {
+      await apiClient.patch(`/quizzes/${id}/questions/reorder`, {
+        ordered_ids: qs.map((q) => q.id),
+      });
+    } catch (err) {
+      console.error("Failed to reorder", err);
+      loadQuiz(); // revert on error
+    }
+  };
+
+  if (loading) return <div className="p-8">{t("editor.loadingEditor")}</div>;
+  if (!quiz) return <div className="p-8 text-red-500">{t("editor.quizNotFound")}</div>;
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-8 bg-gray-50 min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50 page-bg">
+    <div className="max-w-4xl mx-auto p-4 md:p-8">
+      {/* Status change confirm modal */}
+      {statusConfirm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full mx-4">
+            <h2 className="text-lg font-bold text-gray-800 mb-2">{t(`editor.${statusConfirm.newStatus === "draft" ? "revertToDraft" : statusConfirm.newStatus === "archived" ? "archiveQuiz" : "unarchiveQuiz"}`)}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t(statusConfirm.confirmKey)}</p>
+            <div className="flex gap-3">
+              <button onClick={executeStatusChange} className="flex-1 bg-violet-600 text-white py-2 rounded-xl font-semibold hover:bg-violet-700 transition-colors">{t("common.ok")}</button>
+              <button onClick={() => setStatusConfirm(null)} className="flex-1 border border-gray-200 text-gray-700 py-2 rounded-xl hover:bg-gray-50 transition-colors">{t("common.cancel")}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Info modal */}
+      {infoMsg && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full mx-4 text-center">
+            <p className="text-gray-800 font-medium mb-4">{infoMsg}</p>
+            <button onClick={() => setInfoMsg(null)} className="bg-gradient-to-r from-violet-600 to-indigo-500 text-white px-6 py-2 rounded-xl font-semibold hover:opacity-90">{t("common.ok")}</button>
+          </div>
+        </div>
+      )}
+      {/* Delete question confirm */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full mx-4">
+            <h2 className="text-lg font-bold text-gray-800 mb-2">{t("editor.deleteQuestion")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("editor.deleteQuestionConfirm")}</p>
+            <div className="flex gap-3">
+              <button onClick={confirmDeleteQuestion} className="flex-1 bg-red-500 text-white py-2 rounded-xl font-semibold hover:bg-red-600 transition-colors">{t("common.delete")}</button>
+              <button onClick={() => setDeleteConfirmId(null)} className="flex-1 border border-gray-200 text-gray-700 py-2 rounded-xl hover:bg-gray-50 transition-colors">{t("common.cancel")}</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="mb-8 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-        <Link href="/quizzes" className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium transition-colors bg-white px-4 py-2 rounded-lg shadow-sm border">
-          <ArrowLeft size={18} /> Back to Dashboard
+        <Link href="/quizzes" className="inline-flex items-center gap-2 text-gray-600 hover:text-violet-700 font-medium transition-colors bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-100 hover:border-violet-200">
+          <ArrowLeft size={18} /> Qvízovna
         </Link>
-        <div className="flex items-center gap-3">
-          <span className={`px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-wide border ${quiz.status === 'published' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-yellow-100 text-yellow-800 border-yellow-200'}`}>
-            {quiz.status}
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <span className={`px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-wide border ${
+            quiz.status === 'published' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+            quiz.status === 'archived' ? 'bg-gray-100 text-gray-500 border-gray-300' :
+            'bg-amber-100 text-amber-700 border-amber-200'
+          }`}>
+            {t(`status.${quiz.status}`) || quiz.status}
           </span>
-          {quiz.status !== 'published' && (
-            <button onClick={publishQuiz} className="bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 font-medium shadow-sm transition-colors">
-              Publish Quiz
+          {quiz.status === 'draft' && (
+            <button onClick={publishQuiz} disabled={statusChanging} className="bg-gradient-to-r from-violet-600 to-indigo-500 text-white px-5 py-2 rounded-xl hover:opacity-90 font-semibold shadow-md transition-opacity disabled:opacity-50">
+              {t("editor.publishQuiz")}
+            </button>
+          )}
+          {quiz.status === 'published' && (
+            <>
+              <button
+                onClick={() => changeStatus("draft", "editor.confirmRevertDraft")}
+                disabled={statusChanging}
+                className="text-sm text-amber-700 bg-amber-50 border border-amber-200 px-4 py-2 rounded-xl hover:bg-amber-100 font-semibold disabled:opacity-50"
+              >
+                {t("editor.revertToDraft")}
+              </button>
+              <button
+                onClick={() => changeStatus("archived", "editor.confirmArchive")}
+                disabled={statusChanging}
+                className="text-sm text-gray-600 bg-gray-50 border border-gray-200 px-4 py-2 rounded-xl hover:bg-gray-100 font-semibold disabled:opacity-50"
+              >
+                {t("editor.archiveQuiz")}
+              </button>
+            </>
+          )}
+          {quiz.status === 'archived' && (
+            <button
+              onClick={() => changeStatus("draft", "editor.confirmRevertDraft")}
+              disabled={statusChanging}
+              className="text-sm text-amber-700 bg-amber-50 border border-amber-200 px-4 py-2 rounded-xl hover:bg-amber-100 font-semibold disabled:opacity-50"
+            >
+              {t("editor.unarchiveQuiz")}
             </button>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-8">
+      <div className="grid grid-cols-1 gap-6">
         {/* Quiz Meta Form */}
-        <form onSubmit={saveQuizMeta} className="bg-white p-6 md:p-8 rounded-xl shadow border border-gray-100">
-          <h2 className="text-2xl font-black text-gray-800 mb-6 border-b pb-4">Quiz Details</h2>
+        <form onSubmit={saveQuizMeta} className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-violet-100">
+          <h2 className="text-2xl font-black text-gray-800 mb-6 border-b border-violet-100 pb-4">{t("editor.quizDetails")}</h2>
           <div className="space-y-5">
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1.5">Quiz Title</label>
-              <input 
-                type="text" 
-                value={quiz.title} 
+              <label className="block text-sm font-bold text-gray-700 mb-1.5">{t("editor.quizTitle")}</label>
+              <input
+                type="text"
+                value={quiz.title}
                 onChange={e => setQuiz({...quiz, title: e.target.value})}
-                className="w-full border border-gray-300 p-3 rounded-lg text-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-shadow"
+                className="w-full border border-gray-200 p-3 rounded-xl text-lg focus:ring-2 focus:ring-violet-400 outline-none transition-shadow"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1.5">Description</label>
-              <textarea 
-                value={quiz.description || ''} 
+              <label className="block text-sm font-bold text-gray-700 mb-1.5">{t("editor.description")}</label>
+              <textarea
+                value={quiz.description || ''}
                 onChange={e => setQuiz({...quiz, description: e.target.value})}
-                className="w-full border border-gray-300 p-3 rounded-lg h-28 resize-none focus:ring-2 focus:ring-indigo-500 outline-none transition-shadow"
-                placeholder="Briefly describe what this quiz is about..."
+                className="w-full border border-gray-200 p-3 rounded-xl h-28 resize-none focus:ring-2 focus:ring-violet-400 outline-none transition-shadow"
+                placeholder={t("editor.descriptionPlaceholder")}
               />
             </div>
-            <button type="submit" disabled={saving} className="bg-gray-900 text-white px-6 py-2.5 rounded-lg hover:bg-gray-800 disabled:opacity-50 font-medium transition-colors w-full md:w-auto mt-2">
-              {saving ? 'Saving...' : 'Save Description'}
+            <button type="submit" disabled={saving} className="bg-gray-800 text-white px-6 py-2.5 rounded-xl hover:bg-gray-900 disabled:opacity-50 font-semibold transition-colors w-full md:w-auto">
+              {saving ? t("common.saving") : t("common.save")}
             </button>
           </div>
         </form>
 
         {/* Questions Section */}
-        <div className="bg-white p-6 md:p-8 rounded-xl shadow border border-gray-100">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-8 border-b pb-4 gap-4">
-            <h2 className="text-2xl font-black text-gray-800">Questions <span className="text-gray-400 font-medium text-lg ml-2">({quiz.questions.length})</span></h2>
+        <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-violet-100">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-8 border-b border-violet-100 pb-4 gap-4">
+            <h2 className="text-2xl font-black text-gray-800">{t("editor.questions")} <span className="text-gray-400 font-medium text-lg ml-2">({quiz.questions.length})</span></h2>
             {!isAddingQuestion && !editingQuestionId && (
-              <button 
+              <button
                 onClick={() => setIsAddingQuestion(true)}
-                className="flex justify-center items-center gap-2 text-sm bg-blue-50 text-blue-700 border border-blue-200 px-4 py-2 rounded-lg hover:bg-blue-100 font-bold transition-colors w-full md:w-auto"
+                className="flex justify-center items-center gap-2 text-sm bg-violet-50 text-violet-700 border border-violet-200 px-4 py-2 rounded-xl hover:bg-violet-100 font-bold transition-colors w-full md:w-auto"
               >
-                <Plus size={18} /> Add New Question
+                <Plus size={18} /> {t("editor.addQuestion")}
               </button>
             )}
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-4">
             {quiz.questions.map((q: Question, i: number) => (
               <div key={q.id}>
                 {editingQuestionId === q.id ? (
-                  <QuestionForm 
-                    initialData={q} 
-                    onSave={handleSaveQuestion} 
-                    onCancel={() => setEditingQuestionId(null)} 
+                  <QuestionForm
+                    initialData={q}
+                    onSave={handleSaveQuestion}
+                    onCancel={() => setEditingQuestionId(null)}
                   />
                 ) : (
-                  <div className="border border-gray-200 p-5 rounded-xl flex gap-5 bg-white hover:border-indigo-300 hover:shadow-md transition-all relative group">
-                    <div className="text-indigo-200 font-black text-3xl w-8 shrink-0 flex items-start">{i + 1}.</div>
+                  <div className="border border-gray-100 p-5 rounded-2xl flex gap-5 bg-white hover:border-violet-200 hover:shadow-md transition-all relative group">
+                    {/* Reorder controls */}
+                    <div className="flex flex-col gap-0.5 shrink-0 pt-1">
+                      <button
+                        onClick={() => moveQuestion(i, "up")}
+                        disabled={i === 0}
+                        className="text-gray-300 hover:text-violet-500 disabled:opacity-20 transition-colors"
+                        title="Move up"
+                      >
+                        <ChevronUp size={18} />
+                      </button>
+                      <span className="text-violet-300 font-black text-xl text-center leading-none">{i + 1}</span>
+                      <button
+                        onClick={() => moveQuestion(i, "down")}
+                        disabled={i === quiz.questions.length - 1}
+                        className="text-gray-300 hover:text-violet-500 disabled:opacity-20 transition-colors"
+                        title="Move down"
+                      >
+                        <ChevronDown size={18} />
+                      </button>
+                    </div>
                     <div className="flex-1">
                       <div className="flex justify-between items-start mb-3">
-                        <span className="text-xs font-bold bg-indigo-50 border border-indigo-100 text-indigo-700 px-2.5 py-1 rounded-md uppercase tracking-wide">
+                        <span className="text-xs font-bold bg-violet-50 border border-violet-100 text-violet-700 px-2.5 py-1 rounded-lg uppercase tracking-wide">
                           {q.type.replace('_', ' ')}
                         </span>
-                        <span className="text-sm border bg-gray-50 text-gray-600 px-2 py-0.5 rounded-md font-semibold">{q.points} pt</span>
+                        <span className="text-sm border bg-gray-50 text-gray-500 px-2 py-0.5 rounded-lg font-semibold">{q.points} pt</span>
                       </div>
                       <p className="font-semibold text-gray-800 text-lg whitespace-pre-wrap mb-4">{q.body}</p>
-                      
+
                       {q.type !== 'short_answer' && (
-                        <div className="space-y-2 pl-4 border-l-4 border-gray-100">
+                        <div className="space-y-2 pl-4 border-l-4 border-violet-100">
                           {q.options.map((opt: Option, idx: number) => (
-                            <div key={idx} className={`text-sm flex items-center gap-3 p-2 rounded-md ${opt.is_correct ? 'bg-green-50 text-green-800 font-bold border border-green-200' : 'text-gray-600'}`}>
-                              <span className={`w-6 h-6 rounded flex items-center justify-center font-bold text-xs ${opt.is_correct ? 'bg-green-200 text-green-900' : 'bg-gray-200 text-gray-700'}`}>{opt.id.toUpperCase()}</span>
+                            <div key={idx} className={`text-sm flex items-center gap-3 p-2 rounded-xl ${opt.is_correct ? 'bg-emerald-50 text-emerald-800 font-bold border border-emerald-200' : 'text-gray-600'}`}>
+                              <span className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs ${opt.is_correct ? 'bg-emerald-200 text-emerald-900' : 'bg-gray-100 text-gray-600'}`}>{opt.id.toUpperCase()}</span>
                               <span className="flex-1">{opt.text}</span>
-                              {opt.is_correct && <Check size={16} className="text-green-600 shrink-0" />}
+                              {opt.is_correct && <Check size={16} className="text-emerald-600 shrink-0" />}
                             </div>
                           ))}
                         </div>
@@ -213,11 +356,11 @@ export default function QuizEditor() {
                     </div>
                     {/* Floating Action Buttons */}
                     <div className="absolute top-4 right-4 flex gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => setEditingQuestionId(q.id)} className="text-blue-600 hover:text-white hover:bg-blue-600 bg-blue-50 border border-blue-200 text-sm font-medium px-3 py-1.5 rounded shadow-sm transition-colors">
-                        Edit
+                      <button onClick={() => setEditingQuestionId(q.id)} className="text-violet-600 hover:text-white hover:bg-violet-600 bg-violet-50 border border-violet-200 text-sm font-medium px-3 py-1.5 rounded-xl shadow-sm transition-all">
+                        {t("common.edit")}
                       </button>
-                      <button onClick={() => deleteQuestion(q.id)} className="text-red-600 hover:text-white hover:bg-red-600 bg-red-50 border border-red-200 text-sm font-medium px-3 py-1.5 rounded shadow-sm transition-colors">
-                        Delete
+                      <button onClick={() => deleteQuestion(q.id)} className="text-red-500 hover:text-white hover:bg-red-500 bg-red-50 border border-red-200 text-sm font-medium px-3 py-1.5 rounded-xl shadow-sm transition-all">
+                        {t("common.delete")}
                       </button>
                     </div>
                   </div>
@@ -226,30 +369,31 @@ export default function QuizEditor() {
             ))}
 
             {isAddingQuestion && (
-              <QuestionForm 
-                onSave={handleSaveQuestion} 
-                onCancel={() => setIsAddingQuestion(false)} 
+              <QuestionForm
+                onSave={handleSaveQuestion}
+                onCancel={() => setIsAddingQuestion(false)}
               />
             )}
 
             {!isAddingQuestion && quiz.questions.length === 0 && (
-              <div className="flex flex-col items-center justify-center text-center text-gray-500 py-16 px-4 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50">
-                <div className="bg-gray-200 p-4 rounded-full mb-4">
-                   <Plus size={32} className="text-gray-400" />
+              <div className="flex flex-col items-center justify-center text-center text-gray-500 py-16 px-4 border-2 border-dashed border-violet-200 rounded-2xl bg-violet-50/50">
+                <div className="bg-violet-100 p-4 rounded-2xl mb-4">
+                   <Plus size={32} className="text-violet-400" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-700 mb-2">No questions yet</h3>
-                <p className="max-w-sm mb-6">Start building your quiz by adding single choice, multiple choice, true/false, or short answer questions.</p>
-                <button 
+                <h3 className="text-lg font-bold text-gray-700 mb-2">{t("editor.noQuestions")}</h3>
+                <p className="max-w-sm mb-6 text-sm">{t("editor.noQuestionsDesc")}</p>
+                <button
                   onClick={() => setIsAddingQuestion(true)}
-                  className="bg-indigo-600 text-white px-6 py-2.5 rounded-lg hover:bg-indigo-700 font-semibold shadow-sm transition-colors"
+                  className="bg-gradient-to-r from-violet-600 to-indigo-500 text-white px-6 py-2.5 rounded-xl hover:opacity-90 font-semibold shadow-md transition-opacity"
                 >
-                  Create First Question
+                  {t("editor.createFirst")}
                 </button>
               </div>
             )}
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 }

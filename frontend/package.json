@@ -11,7 +11,11 @@
   "dependencies": {
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "next": "15.5.12"
+    "next": "15.5.12",
+    "lucide-react": "^0.468.0",
+    "react-hook-form": "^7.54.0",
+    "@react-oauth/google": "^0.12.1",
+    "react-qr-code": "^2.0.15"
   },
   "devDependencies": {
     "typescript": "^5",

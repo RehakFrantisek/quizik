@@ -15,6 +15,9 @@ class QuestionBase(BaseModel):
     explanation: str | None = None
     options: list[QuestionOption] = Field(default_factory=list, max_length=10)
     points: int = Field(default=1, ge=1, le=100)
+    # For short_answer: list of accepted alias strings (case-insensitive, fuzzy-matched)
+    accepted_answers: list[str] | None = None
+    image_url: str | None = None
 
 class QuestionCreate(QuestionBase):
     pass
@@ -25,13 +28,15 @@ class QuestionUpdate(BaseModel):
     explanation: str | None = None
     options: list[QuestionOption] | None = Field(max_length=10, default=None)
     points: int | None = Field(ge=1, le=100, default=None)
+    accepted_answers: list[str] | None = None
+    image_url: str | None = None
 
 class QuestionOut(QuestionBase):
     id: uuid.UUID
     quiz_id: uuid.UUID
     position: int
     created_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 class QuestionReorder(BaseModel):

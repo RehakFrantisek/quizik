@@ -23,7 +23,12 @@ class Question(Base):
     # options JSONB contract: [{"id": "a", "text": "Paris", "is_correct": True}]
     options: Mapped[list[dict]] = mapped_column(JSONB, default=list)
 
+    # accepted_answers: list of alias strings for short_answer questions
+    # e.g. ["Adolf Hitler", "Hitler", "A. Hitler"]
+    accepted_answers: Mapped[list | None] = mapped_column(JSONB, default=None)
+
     points: Mapped[int] = mapped_column(SmallInteger, default=1)
+    image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
     # Indexes

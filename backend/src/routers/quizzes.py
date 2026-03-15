@@ -8,8 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.dependencies import get_current_user, get_db
 from src.models.user import User
+from pydantic import BaseModel
 from src.schemas.quiz import QuizCreate, QuizOut, QuizUpdate
-from src.services import quiz_service
+from src.services import quiz_service, session_service
 
 router = APIRouter(prefix="/quizzes", tags=["quizzes"])
 
@@ -61,3 +62,49 @@ async def publish_quiz(
 ):
     """Publish a quiz draft."""
     return await quiz_service.update_quiz(db, quiz_id, current_user.id, QuizUpdate(status="published"))
+
+
+@router.delete("/{quiz_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_quiz(
+    quiz_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Delete a quiz owned by the current user."""
+    await quiz_service.delete_quiz(db, quiz_id, current_user.id)
+
+
+@router.post("/{quiz_id}/clone", response_model=QuizOut, status_code=status.HTTP_201_CREATED)
+async def clone_quiz(
+    quiz_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Clone a quiz template into the current user's library."""
+    cloned = await session_service.clone_quiz(db, quiz_id, current_user)
+    return cloned
+
+
+class ImportBySlugRequest(BaseModel):
+    share_slug: str
+
+
+@router.get("/preview/{share_slug}")
+async def preview_quiz_by_slug(
+    share_slug: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Public endpoint — returns basic quiz info by share slug (no auth required)."""
+    return await quiz_service.get_quiz_preview(db, share_slug)
+
+
+@router.post("/import-from-slug", response_model=QuizOut, status_code=status.HTTP_201_CREATED)
+async def import_quiz_by_slug(
+    body: ImportBySlugRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Find a published quiz by its share slug and clone it into the current user's library."""
+    source = await quiz_service.get_quiz_by_share_slug(db, body.share_slug)
+    cloned = await session_service.clone_quiz(db, source.id, current_user, is_imported=True)
+    return cloned

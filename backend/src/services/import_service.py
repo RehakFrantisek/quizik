@@ -13,35 +13,49 @@ from src.models.question import Question
 from src.models.quiz import Quiz
 from src.schemas.import_job import ConfirmImportRequest, ImportJobResponse, UploadResponse
 from src.utils.storage import validate_and_save_upload
-from src.workers.import_tasks import process_import_job
 
 
 async def upload_file(file: UploadFile, user_id: uuid.UUID) -> UploadResponse:
-    """Validate file, save to storage, create ImportJob, and enqueue Celery task."""
+    """Validate file, save to storage, create ImportJob, and process synchronously."""
     job_id = uuid.uuid4()
-    
+
     # 1. Validate & Save (throws if size > 10MB or unsupported extension)
     try:
         file_path = await validate_and_save_upload(file, str(job_id), str(user_id))
     except AppException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message) from e
 
-    # 2. Create DB Record
+    # 2. Parse the file immediately (synchronous — fast for CSV/xlsx)
+    from src.utils.storage import get_extension
+    from src.importers.factory import get_importer
+    from datetime import datetime
+
+    ext = get_extension(file.filename or "")
+    try:
+        importer = get_importer(ext)
+        with open(file_path, "rb") as f:
+            parsed_result = importer.parse(f)
+        status = "completed"
+        result = parsed_result.model_dump()
+    except Exception as e:
+        status = "failed"
+        result = {"error": str(e), "warnings": [], "parsed_questions": []}
+
+    # 3. Create DB Record with result already set
     async with async_session() as session:
         job = ImportJob(
             id=job_id,
             user_id=user_id,
             file_name=file.filename or "unknown",
             file_path=file_path,
-            status="pending",
+            status=status,
+            result=result,
+            completed_at=datetime.utcnow(),
         )
         session.add(job)
         await session.commit()
 
-    # 3. Enqueue Celery task (fire and forget)
-    process_import_job.delay(str(job_id))
-
-    return UploadResponse(job_id=job_id, status="pending")
+    return UploadResponse(job_id=job_id, status=status)
 
 
 async def get_job_status(job_id: uuid.UUID, user_id: uuid.UUID) -> ImportJobResponse:

@@ -46,6 +46,34 @@ async def get_quizzes(db: AsyncSession, author_id: uuid.UUID) -> list[Quiz]:
     result = await db.execute(stmt)
     return list(result.scalars().all())
 
+async def delete_quiz(db: AsyncSession, quiz_id: uuid.UUID, author_id: uuid.UUID) -> None:
+    quiz = await get_quiz(db, quiz_id)
+    if quiz.author_id != author_id:
+        raise ForbiddenException("Not authorized to delete this quiz")
+    await db.delete(quiz)
+    await db.commit()
+
+
+async def get_quiz_preview(db: AsyncSession, share_slug: str) -> dict:
+    """Return public info about a quiz by its share_slug (no auth needed)."""
+    quiz = await get_quiz_by_share_slug(db, share_slug)
+    return {
+        "share_slug": quiz.share_slug,
+        "title": quiz.title,
+        "description": quiz.description,
+        "question_count": len(quiz.questions),
+        "status": quiz.status,
+    }
+
+
+async def get_quiz_by_share_slug(db: AsyncSession, share_slug: str) -> Quiz:
+    stmt = select(Quiz).where(Quiz.share_slug == share_slug).options(selectinload(Quiz.questions))
+    quiz = (await db.execute(stmt)).scalar_one_or_none()
+    if not quiz:
+        raise NotFoundException(resource="Quiz")
+    return quiz
+
+
 async def update_quiz(db: AsyncSession, quiz_id: uuid.UUID, author_id: uuid.UUID, quiz_in: QuizUpdate) -> Quiz:
     quiz = await get_quiz(db, quiz_id)
     if quiz.author_id != author_id:

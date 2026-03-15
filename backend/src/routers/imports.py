@@ -39,7 +39,8 @@ async def confirm_import_endpoint(
     current_user: User = Depends(get_current_user),
 ):
     """Confirm a completed import job and create a quiz."""
-    return await confirm_import(job_id, current_user.id, request)
+    quiz = await confirm_import(job_id, current_user.id, request)
+    return {"quiz_id": str(quiz.id)}
 
 
 @router.delete("/jobs/{job_id}", status_code=204)

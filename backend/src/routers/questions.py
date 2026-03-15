@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.dependencies import get_current_user, get_db
 from src.models.user import User
+from pydantic import BaseModel
 from src.schemas.question import QuestionCreate, QuestionOut, QuestionUpdate
 from src.services import question_service
 
@@ -23,6 +24,22 @@ async def add_question(
     """Add a question to a quiz."""
     return await question_service.create_question(db, quiz_id, current_user.id, question_in)
 
+
+class ReorderRequest(BaseModel):
+    ordered_ids: list[uuid.UUID]
+
+
+@router.patch("/reorder", status_code=status.HTTP_204_NO_CONTENT)
+async def reorder_questions(
+    quiz_id: uuid.UUID,
+    body: ReorderRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Reorder questions by providing the desired list of question IDs."""
+    await question_service.reorder_questions(db, quiz_id, current_user.id, body.ordered_ids)
+
+
 @router.patch("/{question_id}", response_model=QuestionOut)
 async def update_question(
     quiz_id: uuid.UUID,
@@ -33,6 +50,7 @@ async def update_question(
 ):
     """Update an existing question."""
     return await question_service.update_question(db, quiz_id, question_id, current_user.id, question_in)
+
 
 @router.delete("/{question_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_question(

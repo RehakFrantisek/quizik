@@ -57,3 +57,7 @@ For next-phase planning and implementation order, start with:
 - `docs/adr/` (ADR 001-004)
 
 These documents define the canonical terminology (`template`, `clone`, `version`, `session`, `attempt`) and the recommended implementation sequence for auth, ownership, sessions, review, anti-cheat telemetry, and optional minigames.
+
+
+# refresh everything and rerun it
+# docker compose --env-file .env down && docker compose --env-file .env build && docker compose --env-file .env up -d && docker compose --env-file .env exec api alembic upgrade head

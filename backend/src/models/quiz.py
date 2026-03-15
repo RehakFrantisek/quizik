@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -43,6 +43,13 @@ class Quiz(Base):
     # Indexes
     __table_args__ = (Index("ix_quizzes_author_id_status", "author_id", "status"),)
 
+    # clone_of_id: if set, this quiz was cloned from another quiz
+    clone_of_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("quizzes.id", ondelete="SET NULL"), nullable=True
+    )
+    # is_imported: True when cloned via share-slug (external import), False when cloned within own library
+    is_imported: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+
     # Relationships
     author: Mapped["User"] = relationship("User", back_populates="quizzes")  # noqa: F821
     questions: Mapped[list["Question"]] = relationship(  # noqa: F821
@@ -53,4 +60,7 @@ class Quiz(Base):
     )
     analytics: Mapped["QuizAnalytics"] = relationship(  # noqa: F821
         "QuizAnalytics", back_populates="quiz", cascade="all, delete-orphan", uselist=False
+    )
+    sessions: Mapped[list["QuizSession"]] = relationship(  # noqa: F821
+        "QuizSession", back_populates="quiz", cascade="all, delete-orphan"
     )

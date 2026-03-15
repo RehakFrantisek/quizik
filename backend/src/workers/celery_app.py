@@ -21,6 +21,12 @@ celery_app.conf.update(
     task_acks_late=True,
     worker_prefetch_multiplier=1,
     task_default_queue="import",
+    beat_schedule={
+        "auto-manage-sessions": {
+            "task": "auto_manage_sessions",
+            "schedule": 300.0,  # every 5 minutes
+        },
+    },
 )
 
 # Auto-discover tasks from workers module

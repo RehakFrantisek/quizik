@@ -1,8 +1,9 @@
 """Quizik API — Answer model."""
 
 import uuid
+from datetime import datetime
 
-from sqlalchemy import Boolean, ForeignKey, Index, SmallInteger
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, SmallInteger, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -22,6 +23,14 @@ class Answer(Base):
     is_correct: Mapped[bool] = mapped_column(Boolean)
     points_awarded: Mapped[int] = mapped_column(SmallInteger, default=0)
     time_spent_sec: Mapped[int | None] = mapped_column(SmallInteger)
+
+    # Manual score override by teacher
+    points_override: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    override_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    override_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    override_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Indexes
     __table_args__ = (

@@ -31,6 +31,8 @@ class QuizOut(QuizBase):
     id: uuid.UUID
     author_id: uuid.UUID
     share_slug: str | None
+    clone_of_id: uuid.UUID | None = None
+    is_imported: bool = False
     status: str
     settings: QuizSettings
     published_at: datetime | None

@@ -26,7 +26,9 @@ async def create_question(db: AsyncSession, quiz_id: uuid.UUID, author_id: uuid.
         body=question_in.body,
         explanation=question_in.explanation,
         options=[opt.model_dump() for opt in question_in.options],
+        accepted_answers=question_in.accepted_answers,
         points=question_in.points,
+        image_url=question_in.image_url,
     )
     db.add(db_question)
     await db.commit()
@@ -59,6 +61,21 @@ async def update_question(db: AsyncSession, quiz_id: uuid.UUID, question_id: uui
     await db.commit()
     await db.refresh(question)
     return question
+
+async def reorder_questions(
+    db: AsyncSession, quiz_id: uuid.UUID, author_id: uuid.UUID, ordered_ids: list[uuid.UUID]
+) -> None:
+    """Set question positions based on the provided ordered list of IDs."""
+    quiz = await get_quiz(db, quiz_id)
+    if quiz.author_id != author_id:
+        raise ForbiddenException("Not authorized to edit this quiz")
+    stmt = select(Question).where(Question.quiz_id == quiz_id)
+    questions = {q.id: q for q in (await db.execute(stmt)).scalars().all()}
+    for pos, qid in enumerate(ordered_ids, start=1):
+        if qid in questions:
+            questions[qid].position = pos
+    await db.commit()
+
 
 async def delete_question(db: AsyncSession, quiz_id: uuid.UUID, question_id: uuid.UUID, author_id: uuid.UUID):
     quiz = await get_quiz(db, quiz_id)

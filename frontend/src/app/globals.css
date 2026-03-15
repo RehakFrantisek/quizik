@@ -12,15 +12,153 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ── Dark mode ─────────────────────────────────────────────────────────────── */
+/* Applied when <html class="dark"> is set by ThemeContext                      */
+
+.dark {
+  --background: #0f172a;
+  --foreground: #e2e8f0;
+}
+
+.dark body {
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+/* Backgrounds */
+.dark .bg-white          { background-color: #1e293b !important; }
+.dark .bg-gray-50        { background-color: #0f172a !important; }
+.dark .bg-gray-100       { background-color: #1e293b !important; }
+.dark .bg-gray-200       { background-color: #334155 !important; }
+.dark .bg-slate-900      { background-color: #020617 !important; }
+
+/* Borders */
+.dark .border-gray-200   { border-color: #334155 !important; }
+.dark .border-gray-300   { border-color: #475569 !important; }
+.dark .divide-y > *      { border-color: #334155 !important; }
+
+/* Text */
+.dark .text-gray-800     { color: #e2e8f0 !important; }
+.dark .text-gray-700     { color: #cbd5e1 !important; }
+.dark .text-gray-600     { color: #94a3b8 !important; }
+.dark .text-gray-500     { color: #64748b !important; }
+.dark .text-gray-400     { color: #475569 !important; }
+
+/* Shadows */
+.dark .shadow            { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4) !important; }
+.dark .shadow-sm         { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.4) !important; }
+.dark .shadow-xl         { box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.5) !important; }
+
+/* Hover states */
+.dark .hover\:bg-gray-100:hover  { background-color: #334155 !important; }
+.dark .hover\:bg-gray-50:hover   { background-color: #1e293b !important; }
+.dark .hover\:border-blue-300:hover { border-color: #3b82f6 !important; }
+.dark .hover\:bg-blue-50:hover   { background-color: #1e3a5f !important; }
+
+/* Table rows */
+.dark tr.bg-gray-50      { background-color: #1e293b !important; }
+.dark thead.bg-gray-50   { background-color: #1e293b !important; }
+.dark .bg-gray-50.text-gray-600 { background-color: #1e293b !important; color: #94a3b8 !important; }
+
+/* Opacity variants */
+.dark .opacity-50        { opacity: 0.4; }
+
+/* Nav */
+.dark nav.bg-white       { background-color: #1e293b !important; border-color: #334155 !important; }
+
+/* Modals / overlays */
+.dark .bg-white.rounded-xl { background-color: #1e293b !important; }
+.dark .bg-white.border.rounded-xl { background-color: #1e293b !important; }
+
+/* Indigo gamification panel */
+.dark .bg-indigo-50      { background-color: #1e1b4b !important; }
+.dark .border-indigo-200 { border-color: #4338ca !important; }
+.dark .text-indigo-700   { color: #a5b4fc !important; }
+
+/* Form inputs — override all text inputs, selects, textareas */
+.dark input:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]),
+.dark textarea,
+.dark select {
+  background-color: #0f172a !important;
+  color: #e2e8f0 !important;
+  border-color: #475569 !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* Blue selected option buttons */
+.dark .border-blue-500.bg-blue-50 {
+  background-color: #1e3a5f !important;
+  color: #93c5fd !important;
+}
+
+/* Progress bar track */
+.dark .bg-gray-200.rounded-full {
+  background-color: #334155 !important;
+}
+
+/* Violet hover states */
+.dark .hover\:bg-violet-50:hover { background-color: #1e1b4b !important; }
+.dark .hover\:bg-violet-100:hover { background-color: #2e1a5e !important; }
+.dark .bg-violet-50 { background-color: #1e1b4b !important; }
+.dark .bg-violet-100 { background-color: #2e1a5e !important; }
+
+/* Yellow/warning backgrounds */
+.dark .bg-yellow-50 { background-color: #2d2400 !important; }
+.dark .bg-yellow-100 { background-color: #3d3200 !important; }
+.dark .border-yellow-200 { border-color: #713f12 !important; }
+.dark .text-yellow-800 { color: #fef08a !important; }
+.dark .text-yellow-700 { color: #fde047 !important; }
+.dark .text-yellow-600 { color: #facc15 !important; }
+
+/* Green backgrounds */
+.dark .bg-green-50 { background-color: #052e16 !important; }
+.dark .bg-green-100 { background-color: #14532d !important; }
+.dark .border-green-200 { border-color: #166534 !important; }
+
+/* Red backgrounds */
+.dark .bg-red-50 { background-color: #2d0000 !important; }
+.dark .bg-red-100 { background-color: #450a0a !important; }
+.dark .border-red-200 { border-color: #7f1d1d !important; }
+
+/* Orange backgrounds */
+.dark .bg-orange-50 { background-color: #1c0a00 !important; }
+.dark .border-orange-200 { border-color: #9a3412 !important; }
+
+/* Amber */
+.dark .bg-amber-50 { background-color: #1c1200 !important; }
+.dark .bg-amber-100 { background-color: #2d1f00 !important; }
+.dark .border-amber-200 { border-color: #92400e !important; }
+.dark .text-amber-700 { color: #fbbf24 !important; }
+
+/* Emerald */
+.dark .bg-emerald-100 { background-color: #022c22 !important; }
+.dark .border-emerald-200 { border-color: #065f46 !important; }
+.dark .text-emerald-700 { color: #34d399 !important; }
+
+/* Blue backgrounds */
+.dark .bg-blue-50 { background-color: #0c1a2e !important; }
+.dark .bg-blue-100 { background-color: #1e3a5f !important; }
+.dark .border-blue-200 { border-color: #1e3a5f !important; }
+
+/* Violet text */
+.dark .text-violet-700 { color: #c4b5fd !important; }
+.dark .text-violet-600 { color: #a78bfa !important; }
+
+/* Table overflow */
+.dark .overflow-x-auto { background-color: transparent !important; }
+
+/* Page background override for gradient wrappers */
+.dark .page-bg {
+  background: #0f172a !important;
+  background-image: none !important;
 }

@@ -1,5 +1,9 @@
 # Roadmap: Gamification, Auth, and School-Oriented Evolution
 
+> **Implementation status (2026-03-14):**
+> Phases 1–5 (real auth, ownership, clone/session model, review/leaderboard, fuzzy open answers)
+> have been implemented as of Phase 2 implementation pass. See `docs/CURRENT_STATE.md` for details.
+
 This roadmap is incremental and designed to preserve current MVP flows.
 
 ## Terminology Baseline
