@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { apiClient } from "@/lib/api-client";
@@ -32,7 +32,7 @@ interface Quiz {
   questions?: unknown[];
 }
 
-export default function QuizzesDashboard() {
+function QuizzesDashboard() {
   const { t, lang } = useLang();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -407,5 +407,13 @@ export default function QuizzesDashboard() {
         );
       })()}
     </div>
+  );
+}
+
+export default function QuizzesDashboardPage() {
+  return (
+    <Suspense fallback={null}>
+      <QuizzesDashboard />
+    </Suspense>
   );
 }
