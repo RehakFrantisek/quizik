@@ -43,6 +43,10 @@ def create_app() -> FastAPI:
     app.include_router(play.router, prefix="/api/v1")
     app.include_router(uploads.router, prefix="/api/v1")
 
+    @app.get("/")
+    async def root():
+        return {"status": "ok"}
+
     # Serve uploaded files (question images etc.)
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     app.mount("/api/v1/static/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
