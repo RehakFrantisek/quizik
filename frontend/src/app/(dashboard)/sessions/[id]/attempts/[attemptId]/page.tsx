@@ -286,7 +286,7 @@ export default function AttemptReviewPage() {
                       <span className="text-gray-400 tabular-nums">{new Date(ev.client_ts).toLocaleTimeString()}</span>
                     )}
                     {ev.event_type === "fast_answer" && ev.payload?.time_sec != null && (
-                      <span className="text-yellow-600">({ev.payload.time_sec}s)</span>
+                      <span className="text-yellow-600">({String(ev.payload.time_sec)}s)</span>
                     )}
                   </li>
                 ))}
