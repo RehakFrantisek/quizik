@@ -1,7 +1,10 @@
 """Quizik API — FastAPI application factory."""
 
+import logging
 from pathlib import Path
 
+from alembic import command
+from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
@@ -9,12 +12,24 @@ from src.exceptions import register_exception_handlers
 from src.middleware import configure_logging, setup_middleware
 
 UPLOAD_DIR = Path("/app/data/uploads")
+logger = logging.getLogger(__name__)
+
+
+def run_migrations() -> None:
+    """Run alembic migrations on startup."""
+    try:
+        alembic_cfg = Config("/app/alembic.ini")
+        command.upgrade(alembic_cfg, "head")
+        logger.info("Database migrations applied.")
+    except Exception as e:
+        logger.warning(f"Migration skipped or failed: {e}")
 
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
 
     configure_logging()
+    run_migrations()
 
     app = FastAPI(
         title="Quizik API",
