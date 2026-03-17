@@ -10,7 +10,7 @@ from src.database import engine
 router = APIRouter(prefix="/health", tags=["health"])
 
 
-@router.get("/")
+@router.api_route("/", methods=["GET", "HEAD"])
 async def health():
     """Basic liveness check."""
     return {"status": "ok"}
