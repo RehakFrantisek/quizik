@@ -101,15 +101,32 @@ export default function RegisterPage() {
             </div>
           )}
 
+          <div className="mb-4">
+            <label className={labelClass}>
+              {t("auth.invitationCode")} <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={invitationCode}
+              onChange={(e) => setInvitationCode(e.target.value)}
+              className={`${inputClass} font-mono`}
+              placeholder={t("auth.invitationCodePlaceholder")}
+            />
+          </div>
+
           {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
             <div className="mb-4">
               <GoogleLogin
                 onSuccess={async (resp) => {
                   if (!resp.credential) return;
+                  if (!invitationCode.trim()) {
+                    setError(t("auth.invitationCodeRequired"));
+                    return;
+                  }
                   setError("");
                   setLoading(true);
                   try {
-                    await loginWithGoogle(resp.credential, invitationCode || undefined);
+                    await loginWithGoogle(resp.credential, invitationCode.trim());
                     router.push("/quizzes");
                   } catch (err) {
                     setError(err instanceof Error ? err.message : t("auth.googleSignupFailed"));
