@@ -3,8 +3,6 @@
 import logging
 from pathlib import Path
 
-from alembic import command
-from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
@@ -16,13 +14,21 @@ logger = logging.getLogger(__name__)
 
 
 def run_migrations() -> None:
-    """Run alembic migrations on startup."""
+    """Run alembic migrations on startup via subprocess."""
+    import subprocess
     try:
-        alembic_cfg = Config("/app/alembic.ini")
-        command.upgrade(alembic_cfg, "head")
-        logger.info("Database migrations applied.")
+        result = subprocess.run(
+            ["alembic", "upgrade", "head"],
+            cwd="/app",
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            logger.info("Database migrations applied.")
+        else:
+            logger.warning(f"Migration failed: {result.stderr}")
     except Exception as e:
-        logger.warning(f"Migration skipped or failed: {e}")
+        logger.warning(f"Migration skipped: {e}")
 
 
 def create_app() -> FastAPI:
