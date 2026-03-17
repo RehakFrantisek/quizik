@@ -166,6 +166,7 @@ async def forgot_password(body: ForgotPasswordRequest):
 
 class GoogleAuthRequest(BaseModel):
     credential: str  # Google ID token (JWT)
+    invitation_code: str | None = None
 
 
 @router.post("/google", response_model=AuthResponse)
@@ -212,7 +213,7 @@ async def google_auth(
     ip_address = request.client.host if request.client else None
     user_agent = request.headers.get("user-agent")
 
-    user = await auth_service.get_or_create_google_user(db, google_id, email, display_name, avatar_url)
+    user = await auth_service.get_or_create_google_user(db, google_id, email, display_name, avatar_url, body.invitation_code)
     token = auth_service.create_access_token(user.id)
 
     await auth_service.create_login_log(db, user.id, "google_login", ip_address, user_agent)

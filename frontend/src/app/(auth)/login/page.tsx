@@ -110,7 +110,8 @@ export default function LoginPage() {
                     await loginWithGoogle(resp.credential);
                     router.push("/quizzes");
                   } catch (err) {
-                    setError(err instanceof Error ? err.message : t("auth.googleLoginFailed"));
+                    const msg = err instanceof Error ? err.message : t("auth.googleLoginFailed");
+                    setError(msg.includes("invitation") ? t("auth.googleLoginNoInvitation") : msg);
                   } finally {
                     setLoading(false);
                   }

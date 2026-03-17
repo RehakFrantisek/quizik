@@ -46,6 +46,7 @@ const translations: Record<string, Record<string, string>> = {
     "auth.invitationCodePlaceholder": "Enter your invitation code",
     "auth.gmailHint": "Gmail address detected — please use Google login above.",
     "auth.googleLoginFailed": "Google login failed",
+    "auth.googleLoginNoInvitation": "No account found. To register, go to the Register page and enter your invitation code.",
     "auth.googleSignupFailed": "Google sign-up failed",
     "auth.platformSubtitle": "Quiz platform for schools",
 
@@ -418,6 +419,7 @@ const translations: Record<string, Record<string, string>> = {
     "auth.invitationCodePlaceholder": "Zadejte zvací kód",
     "auth.gmailHint": "Detekován Gmail — přihlaste se pomocí Google výše.",
     "auth.googleLoginFailed": "Přihlášení přes Google selhalo",
+    "auth.googleLoginNoInvitation": "Účet nenalezen. Pro registraci přejděte na stránku Registrace a zadejte zvací kód.",
     "auth.googleSignupFailed": "Registrace přes Google selhala",
     "auth.platformSubtitle": "Kvízová platforma pro školy",
 

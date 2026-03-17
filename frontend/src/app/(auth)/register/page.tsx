@@ -109,7 +109,7 @@ export default function RegisterPage() {
                   setError("");
                   setLoading(true);
                   try {
-                    await loginWithGoogle(resp.credential);
+                    await loginWithGoogle(resp.credential, invitationCode || undefined);
                     router.push("/quizzes");
                   } catch (err) {
                     setError(err instanceof Error ? err.message : t("auth.googleSignupFailed"));
