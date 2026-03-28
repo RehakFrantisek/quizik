@@ -398,6 +398,22 @@ export default function SessionsPage() {
                   : "Běží pouze pexeso. Měří se čas a výsledek jde do leaderboardu."}
               </p>
             </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Režim spuštění</label>
+              <select
+                value={form.play_mode}
+                onChange={(e) => setForm({ ...form, play_mode: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="quiz">📝 Klasický kvíz</option>
+                <option value="memory_pairs">🧠 Procvičování: Pexeso</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                {form.play_mode === "quiz"
+                  ? "Otázky + volitelné minihry mezi otázkami."
+                  : "Běží pouze pexeso. Měří se čas a výsledek jde do leaderboardu."}
+              </p>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
@@ -500,9 +516,49 @@ export default function SessionsPage() {
                     <option value="tap_sprint">⚡ Tap Sprint</option>
                     <option value="typing_race">⌨️ Typing Race</option>
                     <option value="slider">🎯 Aim & Hit</option>
+                    <option value="memory_pairs">🧠 Pexeso (Q ↔ A)</option>
                     <option value="random">🎲 Random each time</option>
                   </select>
                 </div>
+                {form.minigame_type === "memory_pairs" && (
+                  <div className="bg-white border border-indigo-200 rounded-lg p-3 space-y-2">
+                    <p className="text-xs font-semibold text-indigo-800">
+                      Vyber a uprav páry pro toto spuštění ({memoryPairs.filter((p) => p.enabled).length}/{memoryPairs.length})
+                    </p>
+                    {memoryPairs.length === 0 ? (
+                      <p className="text-xs text-gray-500">Vybraný quiz nemá single-choice otázky se správnou odpovědí.</p>
+                    ) : (
+                      <div className="max-h-52 overflow-auto space-y-2 pr-1">
+                        {memoryPairs.map((pair, idx) => (
+                          <div key={pair.source_question_id} className="border border-gray-200 rounded-lg p-2">
+                            <label className="flex items-center gap-2 text-xs font-semibold mb-2">
+                              <input
+                                type="checkbox"
+                                checked={pair.enabled}
+                                onChange={(e) => setMemoryPairs((prev) => prev.map((p) => p.source_question_id === pair.source_question_id ? { ...p, enabled: e.target.checked } : p))}
+                              />
+                              Pair {idx + 1}
+                            </label>
+                            <input
+                              type="text"
+                              value={pair.front}
+                              onChange={(e) => setMemoryPairs((prev) => prev.map((p) => p.source_question_id === pair.source_question_id ? { ...p, front: e.target.value } : p))}
+                              className="w-full border border-gray-300 rounded px-2 py-1 text-xs mb-1"
+                              placeholder="Front (question text)"
+                            />
+                            <input
+                              type="text"
+                              value={pair.back}
+                              onChange={(e) => setMemoryPairs((prev) => prev.map((p) => p.source_question_id === pair.source_question_id ? { ...p, back: e.target.value } : p))}
+                              className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                              placeholder="Back (correct answer)"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div>
                   <label className="block text-xs font-semibold mb-1">{t("sessions.whenToShow")}</label>
                   <select
