@@ -230,7 +230,7 @@ export default function PlayPage() {
       });
       if (!res.ok) throw new Error("Failed to submit memory mode");
       const data = await res.json();
-      setAnswerResults(Array.isArray(data.answer_results) ? data.answer_results : []);
+      setAllAnswerResults(Array.isArray(data.answer_results) ? data.answer_results : []);
       setResult({
         score: data.score,
         max_score: data.max_score,

@@ -31,6 +31,8 @@ interface MemoryPair {
   back: string;
 }
 
+type MemoryTheme = "classic" | "cosmic" | "jungle" | "ocean" | "pixel";
+
 function getMemoryPairs(config: Record<string, unknown> | null | undefined): MemoryPair[] {
   if (!config || !Array.isArray(config.pairs)) return [];
   return config.pairs
@@ -44,6 +46,12 @@ function getMemoryPairs(config: Record<string, unknown> | null | undefined): Mem
     .filter((p): p is MemoryPair => p !== null);
 }
 
+function getMemoryTheme(config: Record<string, unknown> | null | undefined): MemoryTheme {
+  const raw = typeof config?.theme === "string" ? config.theme : "classic";
+  if (["classic", "cosmic", "jungle", "ocean", "pixel"].includes(raw)) return raw as MemoryTheme;
+  return "classic";
+}
+
 export function Minigame({ onComplete, type = "tap_sprint", durationSec = 5, allowSkip = true, config = null }: Props) {
   const resolved = useRef(resolveType(type)).current;
 
@@ -55,7 +63,7 @@ export function Minigame({ onComplete, type = "tap_sprint", durationSec = 5, all
       return <SliderGame onComplete={onComplete} durationSec={15} />;
     }
     if (resolved === "memory_pairs") {
-      return <MemoryPairs onComplete={onComplete} pairs={getMemoryPairs(config)} />;
+      return <MemoryPairs onComplete={onComplete} pairs={getMemoryPairs(config)} theme={getMemoryTheme(config)} />;
     }
 
     // tap_sprint (default)
@@ -77,10 +85,19 @@ export function Minigame({ onComplete, type = "tap_sprint", durationSec = 5, all
   );
 }
 
-function MemoryPairs({ onComplete, pairs }: { onComplete: (score: number, meta?: { elapsedSec?: number }) => void; pairs: MemoryPair[] }) {
+function MemoryPairs({
+  onComplete,
+  pairs,
+  theme,
+}: {
+  onComplete: (score: number, meta?: { elapsedSec?: number }) => void;
+  pairs: MemoryPair[];
+  theme: MemoryTheme;
+}) {
   const [flipped, setFlipped] = useState<number[]>([]);
   const [matched, setMatched] = useState<Set<number>>(new Set());
   const startedAt = useRef<number>(Date.now());
+  const [elapsedSec, setElapsedSec] = useState(0);
 
   const cards = useMemo(() => {
     const selected = pairs.slice(0, 4);
@@ -96,7 +113,15 @@ function MemoryPairs({ onComplete, pairs }: { onComplete: (score: number, meta?:
     setFlipped([]);
     setMatched(new Set());
     startedAt.current = Date.now();
+    setElapsedSec(0);
   }, [cards.length]);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setElapsedSec(Math.max(0, Math.round((Date.now() - startedAt.current) / 1000)));
+    }, 250);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (cards.length === 0) return;
@@ -123,6 +148,16 @@ function MemoryPairs({ onComplete, pairs }: { onComplete: (score: number, meta?:
     }
   };
 
+  const longestTextLength = cards.reduce((max, c) => Math.max(max, c.label.length), 0);
+  const cardHeightClass = longestTextLength > 95 ? "h-36" : longestTextLength > 65 ? "h-28" : "h-24";
+  const themeBack: Record<MemoryTheme, { icon: string; className: string }> = {
+    classic: { icon: "🃏", className: "bg-gradient-to-br from-indigo-600 to-violet-600 border-indigo-700 text-indigo-100" },
+    cosmic: { icon: "🌌", className: "bg-gradient-to-br from-fuchsia-600 to-indigo-700 border-indigo-800 text-fuchsia-100" },
+    jungle: { icon: "🌿", className: "bg-gradient-to-br from-emerald-600 to-green-700 border-green-800 text-emerald-100" },
+    ocean: { icon: "🌊", className: "bg-gradient-to-br from-cyan-600 to-blue-700 border-blue-800 text-cyan-100" },
+    pixel: { icon: "🕹️", className: "bg-gradient-to-br from-slate-700 to-slate-900 border-slate-950 text-slate-100" },
+  };
+
   if (cards.length === 0) {
     return (
       <div className="bg-white border rounded-2xl p-6 text-center shadow-sm max-w-md mx-auto">
@@ -133,8 +168,13 @@ function MemoryPairs({ onComplete, pairs }: { onComplete: (score: number, meta?:
   }
 
   return (
-    <div className="bg-white border rounded-2xl p-4 shadow-sm max-w-md mx-auto">
-      <p className="text-sm font-bold text-indigo-700 mb-3">🧠 Memory Pairs</p>
+    <div className="bg-white border border-indigo-200 rounded-3xl p-4 shadow-lg max-w-2xl mx-auto">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm font-bold text-indigo-700">🧠 Memory Pairs</p>
+        <div className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-full px-3 py-1">
+          ⏱ {elapsedSec}s
+        </div>
+      </div>
       <div className="grid grid-cols-2 gap-2">
         {cards.map((card, idx) => {
           const isOpen = matched.has(idx) || flipped.includes(idx);
@@ -142,9 +182,11 @@ function MemoryPairs({ onComplete, pairs }: { onComplete: (score: number, meta?:
             <button
               key={`${card.pairId}-${idx}`}
               onClick={() => clickCard(idx)}
-              className={`h-20 rounded-xl border text-xs px-2 transition-colors ${isOpen ? "bg-indigo-50 border-indigo-300 text-indigo-900" : "bg-indigo-600 border-indigo-700 text-indigo-100"}`}
+              className={`${cardHeightClass} rounded-2xl border text-xs px-2 transition-all shadow-sm ${isOpen ? "bg-indigo-50 border-indigo-300 text-indigo-900" : themeBack[theme].className}`}
             >
-              {isOpen ? card.label : "?"}
+              <span className="block leading-snug">
+                {isOpen ? card.label : `${themeBack[theme].icon} ?`}
+              </span>
             </button>
           );
         })}

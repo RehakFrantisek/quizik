@@ -83,6 +83,7 @@ export default function SessionsPage() {
     gamification_enabled: false,
     minigame_type: "tap_sprint",
     minigame_config: null as Record<string, unknown> | null,
+    memory_theme: "classic",
     minigame_trigger_mode: "every_n",
     minigame_trigger_n: 3,
     question_count: 0,
@@ -201,11 +202,11 @@ export default function SessionsPage() {
             front: p.front.trim(),
             back: p.back.trim(),
           }));
-        body.minigame_config = { pairs: selectedPairs };
+        body.minigame_config = { pairs: selectedPairs, theme: form.memory_theme };
       }
       await apiClient.post("/sessions", body);
       setShowCreate(false);
-      setForm({ quiz_id: "", title: "", starts_at: "", ends_at: "", leaderboard_enabled: true, play_mode: "quiz", max_repeats: 0, show_correct_answer: true, gamification_enabled: false, minigame_type: "tap_sprint", minigame_config: null, minigame_trigger_mode: "every_n", minigame_trigger_n: 3, question_count: 0, shuffle_questions: false, shuffle_options: false, anticheat_enabled: false, anticheat_tab_switch: false, anticheat_fast_answer: false, bonuses_enabled: false, bonus_eliminate: false, bonus_second_chance: false, bonus_end_correction: false, bonus_unlock_mode: "immediate", bonus_unlock_x: 3 });
+      setForm({ quiz_id: "", title: "", starts_at: "", ends_at: "", leaderboard_enabled: true, play_mode: "quiz", max_repeats: 0, show_correct_answer: true, gamification_enabled: false, minigame_type: "tap_sprint", minigame_config: null, memory_theme: "classic", minigame_trigger_mode: "every_n", minigame_trigger_n: 3, question_count: 0, shuffle_questions: false, shuffle_options: false, anticheat_enabled: false, anticheat_tab_switch: false, anticheat_fast_answer: false, bonuses_enabled: false, bonus_eliminate: false, bonus_second_chance: false, bonus_end_correction: false, bonus_unlock_mode: "immediate", bonus_unlock_x: 3 });
       setMemoryPairs([]);
       await loadSessions();
     } catch (err) {
@@ -545,6 +546,20 @@ export default function SessionsPage() {
               <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 text-xs text-indigo-700 space-y-3">
                 <p className="font-semibold text-sm">Pexeso – konfigurace pro toto spuštění</p>
                 <p className="text-[11px] text-indigo-600">Editor párů je schválně dole formuláře, aby šel plynule vybrat quiz a hned upravovat páry.</p>
+                <div>
+                  <label className="block text-xs font-semibold mb-1 text-indigo-900">Motiv kartiček</label>
+                  <select
+                    value={form.memory_theme}
+                    onChange={(e) => setForm({ ...form, memory_theme: e.target.value })}
+                    className="w-full border border-indigo-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-700 outline-none"
+                  >
+                    <option value="classic">🃏 Classic</option>
+                    <option value="cosmic">🌌 Cosmic</option>
+                    <option value="jungle">🌿 Jungle</option>
+                    <option value="ocean">🌊 Ocean</option>
+                    <option value="pixel">🕹️ Pixel</option>
+                  </select>
+                </div>
                 <div className="bg-white border border-indigo-200 rounded-lg p-3 space-y-2">
                   <p className="text-xs font-semibold text-indigo-800">
                     Vyber a uprav páry ({memoryPairs.filter((p) => p.enabled).length}/{memoryPairs.length})
@@ -552,7 +567,7 @@ export default function SessionsPage() {
                   {memoryPairs.length === 0 ? (
                     <p className="text-xs text-gray-500">Vybraný quiz nemá single-choice otázky se správnou odpovědí.</p>
                   ) : (
-                    <div className="max-h-60 overflow-auto space-y-2 pr-1">
+                    <div className="space-y-2">
                       {memoryPairs.map((pair, idx) => (
                         <div key={pair.source_question_id} className="border border-gray-200 rounded-lg p-2">
                           <label className="flex items-center gap-2 text-xs font-semibold mb-2">
