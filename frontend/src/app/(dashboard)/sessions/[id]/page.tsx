@@ -732,7 +732,7 @@ export default function SessionDetailPage() {
             <div className="flex gap-2 flex-wrap justify-end shrink-0">
               <button
                 onClick={() => setShowQR(true)}
-                className="flex items-center gap-1.5 text-sm text-gray-600 border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50"
+                className="flex items-center justify-center gap-1.5 text-sm text-gray-600 border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50 basis-full sm:basis-auto"
                 title="Show QR code"
               >
                 <QrCode size={14} /> {t("session.qrCode")}

@@ -100,12 +100,12 @@ function PlayControls() {
   return (
     <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
       <button onClick={toggleLang}
-        className="text-xs font-bold bg-white border border-gray-200 text-gray-500 px-2.5 py-1.5 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
+        className="text-xs font-bold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-300 px-2.5 py-1.5 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
         title={lang === "en" ? "Switch to Czech" : "Přepnout na angličtinu"}>
         {lang === "en" ? "CZ" : "EN"}
       </button>
       <button onClick={toggleTheme}
-        className="bg-white border border-gray-200 text-gray-500 p-1.5 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
+        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-300 p-1.5 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
         title={theme === "dark" ? "Light mode" : "Dark mode"}>
         {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
       </button>
@@ -384,9 +384,9 @@ export default function PlayPage() {
   );
 
   if (phase === "error") return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
       <PlayControls />
-      <div className="bg-white border border-red-200 rounded-xl p-8 max-w-md text-center shadow">
+      <div className="bg-white dark:bg-gray-800 border border-red-200 dark:border-red-800 rounded-xl p-8 max-w-md text-center shadow">
         <h2 className="text-xl font-bold text-red-700 mb-2">{t("play.quizUnavailable")}</h2>
         <p className="text-gray-600">{errorMsg}</p>
       </div>
@@ -394,9 +394,9 @@ export default function PlayPage() {
   );
 
   if (phase === "already_attempted") return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
       <PlayControls />
-      <div className="bg-white border border-orange-200 rounded-xl p-8 max-w-md text-center shadow">
+      <div className="bg-white dark:bg-gray-800 border border-orange-200 dark:border-orange-800 rounded-xl p-8 max-w-md text-center shadow">
         <Trophy size={48} className="mx-auto mb-4 text-yellow-500" />
         <h2 className="text-xl font-bold text-gray-800 mb-2">{t("play.alreadyCompleted")}</h2>
         <p className="text-gray-600 mb-4">{t("play.alreadyCompletedText")}</p>
@@ -412,9 +412,9 @@ export default function PlayPage() {
   // ── Name / Avatar screen ──
 
   if (phase === "name") return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 px-4">
       <PlayControls />
-      <div className="bg-white border rounded-2xl p-8 max-w-md w-full shadow-md">
+      <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-8 max-w-md w-full shadow-md">
         <h1 className="text-2xl font-black text-gray-800 mb-1">{sessionData!.title}</h1>
         {sessionData!.description && <p className="text-gray-500 text-sm mb-3">{sessionData!.description}</p>}
         <p className="text-sm text-gray-400 mb-5">
@@ -458,9 +458,9 @@ export default function PlayPage() {
     const wrongAnswers = allAnswerResults.filter((ar) => !ar.is_correct);
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50 py-8 px-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 py-8 px-4">
         <PlayControls />
-        <div className="bg-white border rounded-2xl p-8 max-w-lg w-full shadow-md text-center">
+        <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-8 max-w-lg w-full shadow-md text-center">
           <div className="text-5xl mb-3">{avatar}</div>
           <CheckCircle size={48} className={`mx-auto mb-3 ${passed ? "text-green-500" : "text-orange-400"}`} />
           <h2 className="text-2xl font-black mb-1">{t("play.quizComplete")}</h2>
@@ -535,9 +535,9 @@ export default function PlayPage() {
   // ── Minigame phase ──
 
   if (phase === "memory_mode") return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-violet-50 to-fuchsia-50 flex flex-col items-center justify-center py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-violet-50 to-fuchsia-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex flex-col items-center justify-center py-6 px-4">
       <PlayControls />
-      <div className="w-full max-w-xl text-center mb-4">
+      <div className="w-full max-w-xl text-center mb-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500">{t("play.practiceMode")}</p>
         <h2 className="text-2xl font-black text-indigo-900">🧠 {t("play.memoryChallengeTitle")}</h2>
         <p className="text-sm text-indigo-700">{t("play.memoryChallengeSubtitle")}</p>
@@ -552,7 +552,7 @@ export default function PlayPage() {
   );
 
   if (phase === "minigame") return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center py-12 px-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center py-8 px-4">
       <PlayControls />
       <Minigame
         type={(sessionData?.minigame_type as "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "random") ?? "tap_sprint"}
@@ -602,7 +602,7 @@ export default function PlayPage() {
   })();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50 flex flex-col items-center py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex flex-col items-center py-8 px-4">
       <PlayControls />
       <div className="w-full max-w-xl">
         {/* Header row with avatar */}
@@ -646,7 +646,7 @@ export default function PlayPage() {
           </div>
         )}
 
-        <div className="bg-white border rounded-2xl p-6 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-6 shadow-sm">
           <p className="text-lg font-semibold text-gray-800 mb-4">{q.body}</p>
           {q.image_url && (
             <img src={q.image_url} alt="" className="max-h-56 mx-auto rounded-xl border border-gray-200 object-contain mb-4" />
