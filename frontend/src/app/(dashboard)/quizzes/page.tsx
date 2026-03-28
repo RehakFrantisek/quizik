@@ -577,17 +577,18 @@ export default function QuizzesDashboard() {
                     {questionCountLabel(lang, quiz.questions?.length ?? 0)}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 ml-2 shrink-0 flex-wrap justify-end">
+                <div className="ml-2 shrink-0">
+                  <div className="flex items-center gap-1.5 flex-wrap justify-end rounded-2xl border border-gray-200 bg-gray-50/80 p-1.5">
                   {quiz.status === "published" && quiz.share_slug && (
                     <button onClick={() => copyShareLink(quiz.share_slug!)}
-                      className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 bg-gray-50 border border-gray-200 px-2.5 py-1.5 rounded-xl transition-all"
+                      className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 bg-white border border-gray-200 px-2.5 py-1.5 rounded-xl transition-all"
                       title={copiedSlug === quiz.share_slug ? t("quiz.copied") : t("quiz.share")}>
                       <Share2 size={14} />
                       <span className="hidden sm:inline">{copiedSlug === quiz.share_slug ? t("quiz.copied") : t("quiz.share")}</span>
                     </button>
                   )}
                   <Link href={`/quizzes/${quiz.id}/edit`}
-                    className="flex items-center gap-1.5 text-violet-600 hover:text-white hover:bg-violet-500 bg-violet-50 border border-violet-200 text-sm px-2.5 py-1.5 rounded-xl transition-all"
+                    className="flex items-center gap-1.5 text-violet-600 hover:text-white hover:bg-violet-500 bg-white border border-violet-200 text-sm px-2.5 py-1.5 rounded-xl transition-all"
                     title={t("common.edit")}>
                     <Edit size={14} />
                     <span className="hidden sm:inline">{t("common.edit")}</span>
@@ -595,7 +596,7 @@ export default function QuizzesDashboard() {
                   <button
                     onClick={() => setCopyActionQuizId(quiz.id)}
                     disabled={cloningId === quiz.id}
-                    className="flex items-center gap-1.5 text-indigo-700 hover:text-white hover:bg-indigo-500 bg-indigo-50 border border-indigo-200 text-sm px-2.5 py-1.5 rounded-xl transition-all disabled:opacity-50"
+                    className="flex items-center gap-1.5 text-indigo-700 hover:text-white hover:bg-indigo-500 bg-white border border-indigo-200 text-sm px-2.5 py-1.5 rounded-xl transition-all disabled:opacity-50"
                     title="Kopírovat / Sloučit"
                   >
                     <ArrowUpFromLine size={14} />
@@ -603,25 +604,17 @@ export default function QuizzesDashboard() {
                   </button>
                   <button
                     onClick={() => setExportQuizId(quiz.id)}
-                    className="flex items-center gap-1.5 text-gray-700 hover:text-white hover:bg-gray-600 bg-gray-50 border border-gray-200 text-sm px-2.5 py-1.5 rounded-xl transition-all"
+                    className="flex items-center gap-1.5 text-gray-700 hover:text-white hover:bg-gray-600 bg-white border border-gray-200 text-sm px-2.5 py-1.5 rounded-xl transition-all"
                     title="Export"
                   >
                     <Download size={14} />
                     <span className="hidden sm:inline">Export</span>
                   </button>
                   <button onClick={() => setDeletingId(quiz.id)}
-                    className="flex items-center gap-1.5 text-red-400 hover:text-white hover:bg-red-500 bg-red-50 border border-red-200 text-sm px-3 py-1.5 rounded-xl transition-all">
+                    className="flex items-center gap-1.5 text-red-400 hover:text-white hover:bg-red-500 bg-white border border-red-200 text-sm px-3 py-1.5 rounded-xl transition-all">
                     <Trash2 size={14} />
                   </button>
-                  <button onClick={() => setMergeTargetId(quiz.id)} className="flex items-center gap-1 text-sm px-2.5 py-1.5 rounded-xl border bg-blue-50 text-blue-700 border-blue-200">
-                    <GitMerge size={14} /> <span className="hidden sm:inline">Merge</span>
-                  </button>
-                  <button onClick={() => downloadExport(quiz.id, "json")} className="flex items-center gap-1 text-sm px-2.5 py-1.5 rounded-xl border bg-gray-50 text-gray-700 border-gray-200">
-                    <Download size={14} /> <span className="hidden sm:inline">JSON</span>
-                  </button>
-                  <button onClick={() => downloadExport(quiz.id, "csv")} className="flex items-center gap-1 text-sm px-2.5 py-1.5 rounded-xl border bg-gray-50 text-gray-700 border-gray-200">
-                    <Download size={14} /> <span className="hidden sm:inline">CSV</span>
-                  </button>
+                  </div>
                 </div>
               </div>
             ))}
