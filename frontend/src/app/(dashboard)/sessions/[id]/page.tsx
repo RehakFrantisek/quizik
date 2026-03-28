@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiClient } from "@/lib/api-client";
@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
 import { ArrowLeft, Eye, EyeOff, Trophy, Edit2, X, Check, QrCode, BarChart2, Trash2, AlertTriangle } from "lucide-react";
 import QRCode from "react-qr-code";
+import { getToken } from "@/lib/auth";
 
 interface Session {
   id: string;
@@ -16,6 +17,8 @@ interface Session {
   session_slug: string;
   status: string;
   leaderboard_enabled: boolean;
+  play_mode?: "quiz" | "memory_pairs" | string;
+  minigame_config?: Record<string, unknown> | null;
   gamification_enabled: boolean;
   minigame_type: string;
   minigame_trigger_mode: string;
@@ -115,7 +118,11 @@ export default function SessionDetailPage() {
     bonus_end_correction: false,
     bonus_unlock_mode: "immediate",
     bonus_unlock_x: 3,
+    memory_theme: "classic",
+    memory_custom_image_url: "",
   });
+  const memoryThemeInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingMemoryTheme, setUploadingMemoryTheme] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) router.replace("/login");
@@ -172,6 +179,8 @@ export default function SessionDetailPage() {
       bonus_end_correction: session.bonus_end_correction ?? false,
       bonus_unlock_mode: session.bonus_unlock_mode ?? "immediate",
       bonus_unlock_x: session.bonus_unlock_x ?? 3,
+      memory_theme: (session.minigame_config?.theme as string) || "classic",
+      memory_custom_image_url: (session.minigame_config?.custom_image_url as string) || "",
     });
     setEditingSettings(true);
   };
@@ -206,6 +215,26 @@ export default function SessionDetailPage() {
       else body.title = null;
       body.starts_at = settingsForm.starts_at ? new Date(settingsForm.starts_at).toISOString() : null;
       body.ends_at = settingsForm.ends_at ? new Date(settingsForm.ends_at).toISOString() : null;
+      if (session?.play_mode === "memory_pairs") {
+        body.show_correct_answer = false;
+        body.gamification_enabled = false;
+        body.question_count = 0;
+        body.shuffle_questions = null;
+        body.shuffle_options = null;
+        body.anticheat_enabled = false;
+        body.anticheat_tab_switch = false;
+        body.anticheat_fast_answer = false;
+        body.bonuses_enabled = false;
+        body.bonus_eliminate = false;
+        body.bonus_second_chance = false;
+        body.bonus_end_correction = false;
+        const cfg = session.minigame_config ?? {};
+        body.minigame_config = {
+          ...cfg,
+          theme: settingsForm.memory_theme,
+          custom_image_url: settingsForm.memory_theme === "custom" ? (settingsForm.memory_custom_image_url || null) : null,
+        };
+      }
       await apiClient.patch(`/sessions/${id}`, body);
       setEditingSettings(false);
       await load();
@@ -293,6 +322,30 @@ export default function SessionDetailPage() {
 
   const completed = attempts.filter((a) => a.status === "completed");
   const visible = completed.filter((a) => !a.hidden_from_leaderboard);
+  const isMemoryMode = session.play_mode === "memory_pairs";
+  const themeIcons: Record<string, string> = { classic: "🃏", cosmic: "🌌", jungle: "🌿", ocean: "🌊", pixel: "🕹️" };
+
+  const uploadMemoryTheme = async (file: File) => {
+    setUploadingMemoryTheme(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const token = getToken();
+      const res = await fetch("/api/v1/uploads/question-image", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Upload motivu selhal.");
+      const data = await res.json();
+      setSettingsForm((prev) => ({ ...prev, memory_theme: "custom", memory_custom_image_url: data.url }));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Upload motivu selhal.");
+    } finally {
+      setUploadingMemoryTheme(false);
+      if (memoryThemeInputRef.current) memoryThemeInputRef.current.value = "";
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8">
@@ -367,6 +420,9 @@ export default function SessionDetailPage() {
         >
           {t(`status.${effectiveStatus}`) || effectiveStatus}
         </span>
+        <span className={`text-xs px-2 py-0.5 rounded-full font-bold border ${isMemoryMode ? "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200" : "bg-slate-50 text-slate-700 border-slate-200"}`}>
+          {isMemoryMode ? "🧠 Pexeso" : "📝 Kvíz"}
+        </span>
       </div>
 
       {/* Info card */}
@@ -405,14 +461,18 @@ export default function SessionDetailPage() {
                   <input type="checkbox" checked={settingsForm.leaderboard_enabled} onChange={(e) => setSettingsForm({ ...settingsForm, leaderboard_enabled: e.target.checked })} className="w-4 h-4 rounded" />
                   <span className="text-sm font-semibold text-gray-700">{t("sessions.leaderboard")}</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={settingsForm.show_correct_answer} onChange={(e) => setSettingsForm({ ...settingsForm, show_correct_answer: e.target.checked })} className="w-4 h-4 rounded" />
-                  <span className="text-sm font-semibold text-gray-700">{t("sessions.showAnswers")}</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={settingsForm.gamification_enabled} onChange={(e) => setSettingsForm({ ...settingsForm, gamification_enabled: e.target.checked })} className="w-4 h-4 rounded" />
-                  <span className="text-sm font-semibold text-gray-700">{t("sessions.minigames")}</span>
-                </label>
+                {!isMemoryMode && (
+                  <>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={settingsForm.show_correct_answer} onChange={(e) => setSettingsForm({ ...settingsForm, show_correct_answer: e.target.checked })} className="w-4 h-4 rounded" />
+                      <span className="text-sm font-semibold text-gray-700">{t("sessions.showAnswers")}</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={settingsForm.gamification_enabled} onChange={(e) => setSettingsForm({ ...settingsForm, gamification_enabled: e.target.checked })} className="w-4 h-4 rounded" />
+                      <span className="text-sm font-semibold text-gray-700">{t("sessions.minigames")}</span>
+                    </label>
+                  </>
+                )}
               </div>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
@@ -422,15 +482,82 @@ export default function SessionDetailPage() {
                   </div>
                   <input type="number" min={0} max={1000} value={settingsForm.max_repeats} onChange={(e) => setSettingsForm({ ...settingsForm, max_repeats: Math.max(0, parseInt(e.target.value) || 0) })} className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm text-center outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <label className="block text-sm font-semibold text-gray-700">{t("sessions.questionCount")}</label>
-                    <p className="text-xs text-gray-400">{t("sessions.questionCountHint")}</p>
+                {!isMemoryMode && (
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <label className="block text-sm font-semibold text-gray-700">{t("sessions.questionCount")}</label>
+                      <p className="text-xs text-gray-400">{t("sessions.questionCountHint")}</p>
+                    </div>
+                    <input type="number" min={0} value={settingsForm.question_count} onChange={(e) => setSettingsForm({ ...settingsForm, question_count: Math.max(0, parseInt(e.target.value) || 0) })} className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm text-center outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
-                  <input type="number" min={0} value={settingsForm.question_count} onChange={(e) => setSettingsForm({ ...settingsForm, question_count: Math.max(0, parseInt(e.target.value) || 0) })} className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm text-center outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
+                )}
               </div>
-              <div className="space-y-1.5">
+              {isMemoryMode && (
+                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 space-y-2">
+                  <p className="text-sm font-semibold text-indigo-800">Motiv kartiček</p>
+                  <select
+                    value={settingsForm.memory_theme}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, memory_theme: e.target.value })}
+                    className="w-full border border-indigo-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-700 outline-none"
+                  >
+                    <option value="classic">🃏 Classic</option>
+                    <option value="cosmic">🌌 Cosmic</option>
+                    <option value="jungle">🌿 Jungle</option>
+                    <option value="ocean">🌊 Ocean</option>
+                    <option value="pixel">🕹️ Pixel</option>
+                    <option value="custom">🖼️ Vlastní (upload)</option>
+                  </select>
+                  {settingsForm.memory_theme === "custom" && (
+                    <div className="bg-white border border-indigo-200 rounded-lg p-3 space-y-2">
+                      <input
+                        ref={memoryThemeInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) void uploadMemoryTheme(file);
+                        }}
+                        className="block w-full text-xs text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-indigo-100 file:px-3 file:py-1.5 file:text-indigo-700"
+                      />
+                      {uploadingMemoryTheme && <p className="text-[11px] text-indigo-600">Nahrávám motiv…</p>}
+                      {settingsForm.memory_custom_image_url && (
+                        <div className="space-y-2">
+                          <div
+                            className="h-24 rounded-xl border border-indigo-200 bg-center bg-cover"
+                            style={{ backgroundImage: `url(${settingsForm.memory_custom_image_url})` }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!confirm("Určitě chcete motiv odebrat? Všude se nastaví classic.")) return;
+                              setSettingsForm((prev) => ({ ...prev, memory_theme: "classic", memory_custom_image_url: "" }));
+                            }}
+                            className="text-xs px-3 py-1.5 rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                          >
+                            Odebrat motiv
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="h-24 rounded-xl border border-indigo-300 bg-indigo-50 text-indigo-900 flex items-center justify-center text-xs">
+                      Přední strana
+                    </div>
+                    {settingsForm.memory_theme === "custom" && settingsForm.memory_custom_image_url ? (
+                      <div
+                        className="h-24 rounded-xl border border-indigo-300 bg-center bg-cover"
+                        style={{ backgroundImage: `url(${settingsForm.memory_custom_image_url})` }}
+                      />
+                    ) : (
+                      <div className="h-24 rounded-xl border border-indigo-700 bg-gradient-to-br from-indigo-600 to-violet-600 text-indigo-100 flex items-center justify-center text-4xl">
+                        {themeIcons[settingsForm.memory_theme] ?? "🃏"}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {!isMemoryMode && <div className="space-y-1.5">
                 <p className="text-sm font-semibold text-gray-700">{t("sessions.shuffleSection")}</p>
                 <div className="flex gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -442,8 +569,8 @@ export default function SessionDetailPage() {
                     <span className="text-sm text-gray-700">{t("sessions.shuffleOptions")}</span>
                   </label>
                 </div>
-              </div>
-              <div className="space-y-1.5">
+              </div>}
+              {!isMemoryMode && <div className="space-y-1.5">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={settingsForm.anticheat_enabled} onChange={(e) => setSettingsForm({ ...settingsForm, anticheat_enabled: e.target.checked })} className="w-4 h-4 rounded" />
                   <span className="text-sm font-semibold text-gray-700">{t("sessions.anticheatEnabled")}</span>
@@ -461,9 +588,9 @@ export default function SessionDetailPage() {
                     <p className="text-xs text-gray-400">{t("sessions.anticheatNote")}</p>
                   </div>
                 )}
-              </div>
+              </div>}
               {/* Bonuses section */}
-              <div className="space-y-1.5">
+              {!isMemoryMode && <div className="space-y-1.5">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={settingsForm.bonuses_enabled} onChange={(e) => setSettingsForm({ ...settingsForm, bonuses_enabled: e.target.checked })} className="w-4 h-4 rounded" />
                   <span className="text-sm font-semibold text-gray-700">{t("sessions.bonusesEnabled")}</span>
@@ -510,9 +637,9 @@ export default function SessionDetailPage() {
                     </div>
                   </div>
                 )}
-              </div>
+              </div>}
 
-              {settingsForm.gamification_enabled && (
+              {!isMemoryMode && settingsForm.gamification_enabled && (
                 <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 text-xs text-indigo-700 space-y-3">
                   <p className="font-semibold text-sm">{t("sessions.minigameSettings")}</p>
 
@@ -571,11 +698,11 @@ export default function SessionDetailPage() {
             </div>
           </form>
         ) : (
-          <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+          <div className="flex flex-col gap-4">
             <div className="space-y-1 text-sm min-w-0 flex-1">
               <p>
                 <span className="font-semibold">{t("session.playLink")}</span>{" "}
-                <a href={playUrl} target="_blank" rel="noopener" className="text-blue-500 hover:underline font-mono">
+                <a href={playUrl} target="_blank" rel="noopener" className="text-blue-500 hover:underline font-mono break-all">
                   {playUrl}
                 </a>
               </p>
@@ -595,16 +722,17 @@ export default function SessionDetailPage() {
                 {(session.max_repeats ?? 0) === 0
                   ? t("session.repeatsAllowed")
                   : `${t("sessions.maxRepeats")}: ${session.max_repeats}`} ·{" "}
-                {session.show_correct_answer ? t("session.answersShown") : t("session.answersHidden")} ·{" "}
-                {session.gamification_enabled ? t("session.minigamesOn") : t("session.noMinigames")}
+                {isMemoryMode
+                  ? "Režim pexeso"
+                  : `${session.show_correct_answer ? t("session.answersShown") : t("session.answersHidden")} · ${session.gamification_enabled ? t("session.minigamesOn") : t("session.noMinigames")}`}
                 {session.starts_at && ` · ${t("session.opens", { date: formatDate(session.starts_at)! })}`}
                 {session.ends_at && ` · ${t("session.closes", { date: formatDate(session.ends_at)! })}`}
               </p>
             </div>
-            <div className="flex gap-2 flex-wrap justify-end shrink-0">
+            <div className="flex gap-2 flex-wrap">
               <button
                 onClick={() => setShowQR(true)}
-                className="flex items-center gap-1.5 text-sm text-gray-600 border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50"
+                className="flex items-center justify-center gap-1.5 text-sm text-gray-600 border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50"
                 title="Show QR code"
               >
                 <QrCode size={14} /> {t("session.qrCode")}

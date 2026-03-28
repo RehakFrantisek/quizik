@@ -29,6 +29,24 @@ interface Props {
   onCancel: () => void;
 }
 
+const DEFAULT_OPTION_IDS = ["a", "b", "c", "d"];
+
+function defaultChoiceOptions(): Option[] {
+  return DEFAULT_OPTION_IDS.map((id, idx) => ({ id, text: "", is_correct: idx === 0 }));
+}
+
+function nextOptionId(existing: Option[]): string {
+  const used = new Set(existing.map((o) => o.id.toLowerCase()));
+  for (const id of DEFAULT_OPTION_IDS) {
+    if (!used.has(id)) return id;
+  }
+  const alphabet = "abcdefghijklmnopqrstuvwxyz";
+  for (const ch of alphabet) {
+    if (!used.has(ch)) return ch;
+  }
+  return `opt${existing.length + 1}`;
+}
+
 export function QuestionForm({ initialData, onSave, onCancel }: Props) {
   const [preview, setPreview] = useState(false);
   const [newAlias, setNewAlias] = useState("");
@@ -43,10 +61,7 @@ export function QuestionForm({ initialData, onSave, onCancel }: Props) {
           body: "",
           explanation: "",
           points: 1,
-          options: [
-            { id: "a", text: "", is_correct: true },
-            { id: "b", text: "", is_correct: false },
-          ],
+          options: defaultChoiceOptions(),
           accepted_answers: [],
           image_url: null,
         },
@@ -147,6 +162,11 @@ export function QuestionForm({ initialData, onSave, onCancel }: Props) {
                   { id: "true", text: "True", is_correct: true },
                   { id: "false", text: "False", is_correct: false },
                 ]);
+              } else if (val === "single_choice" || val === "multiple_choice") {
+                const current = watch("options");
+                if (!current || current.length === 0 || current.every((o) => o.id === "true" || o.id === "false")) {
+                  setValue("options", defaultChoiceOptions());
+                }
               }
             }}>
             <option value="single_choice">Single Choice</option>
@@ -225,7 +245,7 @@ export function QuestionForm({ initialData, onSave, onCancel }: Props) {
             </div>
           ))}
           {questionType !== "true_false" && (
-            <button type="button" onClick={() => append({ id: "", text: "", is_correct: false })} className="flex items-center gap-1 text-sm font-medium text-blue-600 bg-blue-50 px-3 py-2 rounded-lg hover:bg-blue-100 transition-colors mt-3">
+            <button type="button" onClick={() => append({ id: nextOptionId(watch("options") ?? []), text: "", is_correct: false })} className="flex items-center gap-1 text-sm font-medium text-blue-600 bg-blue-50 px-3 py-2 rounded-lg hover:bg-blue-100 transition-colors mt-3">
               <Plus size={16} /> Add Another Option
             </button>
           )}

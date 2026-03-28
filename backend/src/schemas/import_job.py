@@ -44,4 +44,6 @@ class ConfirmImportRequest(BaseModel):
     """Payload to confirm an import, sending back the finalized parsed questions from the review UI."""
     title: str = Field(min_length=1, max_length=255)
     description: str | None = None
+    mode: str = Field(default="create_new", pattern="^(create_new|append_existing)$")
+    existing_quiz_id: uuid.UUID | None = None
     questions: list[ParsedQuestionPreview] = Field(min_items=1)
