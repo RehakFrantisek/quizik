@@ -79,6 +79,7 @@ interface Result {
   max_score: number;
   percentage: number;
   minigame_score: number;
+  time_spent_sec?: number | null;
   leaderboard_enabled: boolean;
 }
 
@@ -236,6 +237,7 @@ export default function PlayPage() {
         max_score: data.max_score,
         percentage: data.percentage,
         minigame_score: data.minigame_score ?? score,
+        time_spent_sec: data.time_spent_sec ?? elapsedSec,
         leaderboard_enabled: sessionData.leaderboard_enabled,
       });
       setPhase("result");
@@ -316,7 +318,7 @@ export default function PlayPage() {
       if (!res.ok) throw new Error("Submission failed");
       const data = await res.json();
       setAllAnswerResults(data.answer_results ?? []);
-      setResult({ score: data.score, max_score: data.max_score, percentage: data.percentage, minigame_score: data.minigame_score ?? 0, leaderboard_enabled: sessionData.leaderboard_enabled });
+      setResult({ score: data.score, max_score: data.max_score, percentage: data.percentage, minigame_score: data.minigame_score ?? 0, time_spent_sec: data.time_spent_sec ?? null, leaderboard_enabled: sessionData.leaderboard_enabled });
       await flushTelemetry(attemptId);
       setPhase("result");
     } catch (err) {
@@ -464,10 +466,13 @@ export default function PlayPage() {
           <h2 className="text-2xl font-black mb-1">{t("play.quizComplete")}</h2>
           <p className="text-4xl font-bold text-gray-800 mb-1">{result.percentage}%</p>
           <p className="text-gray-500 mb-2">{result.score} / {result.max_score} {t("play.points")}</p>
-          {result.minigame_score > 0 && (
+          {sessionData?.play_mode !== "memory_pairs" && result.minigame_score > 0 && (
             <p className="text-xs text-indigo-600 font-semibold mb-1">
               {t("play.bonusPts", { pts: Math.round(result.minigame_score / 10), score: result.minigame_score })}
             </p>
+          )}
+          {sessionData?.play_mode === "memory_pairs" && result.time_spent_sec != null && (
+            <p className="text-sm text-indigo-700 font-semibold mb-1">⏱ Čas: {result.time_spent_sec}s</p>
           )}
           <p className={`font-semibold mb-4 ${passed ? "text-green-600" : "text-orange-600"}`}>
             {passed ? t("play.wellDone") : t("play.keepPracticing")}

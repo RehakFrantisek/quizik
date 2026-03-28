@@ -92,6 +92,7 @@ async def submit_attempt(
         "max_score": result["attempt"].max_score,
         "percentage": result["attempt"].percentage,
         "minigame_score": result["attempt"].minigame_score,
+        "time_spent_sec": result["attempt"].time_spent_sec,
         "completed_at": result["attempt"].completed_at.isoformat() if result["attempt"].completed_at else None,
         "answer_results": result["answer_results"],
     }
