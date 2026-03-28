@@ -31,7 +31,10 @@ def verify_password(plain: str, hashed: str) -> bool:
 # ── JWT helpers ───────────────────────────────────────────────────────────────
 
 def create_access_token(user_id: uuid.UUID) -> str:
-    expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
+    expire_minutes = settings.access_token_expire_minutes
+    if settings.environment != "production":
+        expire_minutes = max(expire_minutes, settings.dev_access_token_expire_minutes)
+    expire = datetime.utcnow() + timedelta(minutes=expire_minutes)
     payload = {"sub": str(user_id), "exp": expire, "type": "access"}
     return jwt.encode(payload, settings.secret_key, algorithm=_ALGORITHM)
 

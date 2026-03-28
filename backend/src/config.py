@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     # ── Auth ──
     secret_key: str = "change-me-in-production"
     access_token_expire_minutes: int = 60  # 1h default for dev convenience
+    dev_access_token_expire_minutes: int = 60 * 24 * 14  # 14 days in development
     refresh_token_expire_days: int = 7
 
     # ── Google OAuth (optional, leave empty to disable) ──

@@ -538,9 +538,9 @@ export default function PlayPage() {
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-violet-50 to-fuchsia-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex flex-col items-center justify-center py-6 px-4">
       <PlayControls />
       <div className="w-full max-w-xl text-center mb-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500">{t("play.practiceMode")}</p>
-        <h2 className="text-2xl font-black text-indigo-900">🧠 {t("play.memoryChallengeTitle")}</h2>
-        <p className="text-sm text-indigo-700">{t("play.memoryChallengeSubtitle")}</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500 dark:text-indigo-300">{t("play.practiceMode")}</p>
+        <h2 className="text-2xl font-black text-indigo-900 dark:text-indigo-100">🧠 {t("play.memoryChallengeTitle")}</h2>
+        <p className="text-sm text-indigo-700 dark:text-indigo-200">{t("play.memoryChallengeSubtitle")}</p>
       </div>
       <Minigame
         type="memory_pairs"

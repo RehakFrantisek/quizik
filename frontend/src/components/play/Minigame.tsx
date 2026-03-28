@@ -98,7 +98,7 @@ export function Minigame({ onComplete, type = "tap_sprint", durationSec = 5, all
       {allowSkip && (
         <button
           onClick={() => onComplete(0)}
-          className="absolute -top-3 right-0 z-10 text-xs font-semibold px-3 py-1.5 rounded-full bg-white/90 border border-gray-200 text-gray-700 hover:bg-white shadow-sm"
+          className="absolute -top-3 right-0 z-10 text-xs font-semibold px-3 py-1.5 rounded-full bg-white/90 dark:bg-gray-800/90 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-gray-800 shadow-sm"
         >
           {t("play.skip")}
         </button>
@@ -211,18 +211,18 @@ function MemoryPairs({
 
   if (cards.length === 0) {
     return (
-      <div className="bg-white border rounded-2xl p-6 text-center shadow-sm max-w-md mx-auto">
-        <p className="text-sm text-gray-600">{t("play.memoryNoPairs")}</p>
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 text-center shadow-sm max-w-md mx-auto">
+        <p className="text-sm text-gray-600 dark:text-gray-300">{t("play.memoryNoPairs")}</p>
         <button onClick={() => onComplete(0)} className="mt-3 text-sm px-4 py-2 rounded-lg bg-indigo-600 text-white">{t("play.continue")}</button>
       </div>
     );
   }
 
   return (
-    <div className="bg-white border border-indigo-200 rounded-3xl p-4 shadow-lg max-w-2xl mx-auto">
+    <div className="bg-white dark:bg-gray-800 border border-indigo-200 dark:border-indigo-900/70 rounded-3xl p-4 shadow-lg max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-bold text-indigo-700">🧠 {t("play.memoryPairsTitle")}</p>
-        <div className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-full px-3 py-1">
+        <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300">🧠 {t("play.memoryPairsTitle")}</p>
+        <div className="text-xs font-semibold text-indigo-700 dark:text-indigo-200 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-900 rounded-full px-3 py-1">
           ⏱ {elapsedSec}s
         </div>
       </div>
@@ -233,10 +233,10 @@ function MemoryPairs({
             <button
               key={`${card.pairId}-${idx}`}
               onClick={() => clickCard(idx)}
-              className="w-32 h-28 md:w-36 md:h-32 rounded-2xl border shadow-sm transition-transform duration-200 active:scale-[0.98] overflow-hidden"
+              className="w-32 h-28 md:w-36 md:h-32 rounded-2xl border border-indigo-200 dark:border-gray-700 shadow-sm transition-transform duration-200 active:scale-[0.98] overflow-hidden"
             >
               {isOpen ? (
-                <span className="w-full h-full bg-indigo-50 border-indigo-300 text-indigo-900 flex items-center justify-center px-2 text-xs md:text-sm leading-snug">
+                <span className="w-full h-full bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-900 text-indigo-900 dark:text-indigo-100 flex items-center justify-center px-2 text-xs md:text-sm leading-snug">
                   {card.label}
                 </span>
               ) : (
@@ -252,7 +252,7 @@ function MemoryPairs({
           );
         })}
       </div>
-      <p className="text-[11px] text-gray-500 mt-3">
+      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-3">
         {t("play.memoryPairsProgress", { matched: matched.size / 2, total: cards.length / 2, round: Math.min(roundIndex + 1, rounds.length), rounds: rounds.length })}
       </p>
     </div>
