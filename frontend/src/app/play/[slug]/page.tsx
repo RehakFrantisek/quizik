@@ -453,7 +453,8 @@ export default function PlayPage() {
   // ── Result screen ──
 
   if (phase === "result" && result) {
-    const passed = result.percentage >= 70;
+    const isMemoryMode = sessionData?.play_mode === "memory_pairs";
+    const passed = isMemoryMode ? true : result.percentage >= 70;
     const bonusEndCorrection = sessionData?.bonuses_enabled && sessionData?.bonus_end_correction;
     const wrongAnswers = allAnswerResults.filter((ar) => !ar.is_correct);
 
@@ -464,19 +465,25 @@ export default function PlayPage() {
           <div className="text-5xl mb-3">{avatar}</div>
           <CheckCircle size={48} className={`mx-auto mb-3 ${passed ? "text-green-500" : "text-orange-400"}`} />
           <h2 className="text-2xl font-black mb-1">{t("play.quizComplete")}</h2>
-          <p className="text-4xl font-bold text-gray-800 mb-1">{result.percentage}%</p>
-          <p className="text-gray-500 mb-2">{result.score} / {result.max_score} {t("play.points")}</p>
-          {sessionData?.play_mode !== "memory_pairs" && result.minigame_score > 0 && (
+          {!isMemoryMode && (
+            <>
+              <p className="text-4xl font-bold text-gray-800 mb-1">{result.percentage}%</p>
+              <p className="text-gray-500 mb-2">{result.score} / {result.max_score} {t("play.points")}</p>
+            </>
+          )}
+          {!isMemoryMode && result.minigame_score > 0 && (
             <p className="text-xs text-indigo-600 font-semibold mb-1">
               {t("play.bonusPts", { pts: Math.round(result.minigame_score / 10), score: result.minigame_score })}
             </p>
           )}
-          {sessionData?.play_mode === "memory_pairs" && result.time_spent_sec != null && (
+          {isMemoryMode && result.time_spent_sec != null && (
             <p className="text-sm text-indigo-700 font-semibold mb-1">⏱ Čas: {result.time_spent_sec}s</p>
           )}
-          <p className={`font-semibold mb-4 ${passed ? "text-green-600" : "text-orange-600"}`}>
-            {passed ? t("play.wellDone") : t("play.keepPracticing")}
-          </p>
+          {!isMemoryMode && (
+            <p className={`font-semibold mb-4 ${passed ? "text-green-600" : "text-orange-600"}`}>
+              {passed ? t("play.wellDone") : t("play.keepPracticing")}
+            </p>
+          )}
 
           {bonusEndCorrection && !endCorrectionUsed && wrongAnswers.length > 0 && (
             <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">

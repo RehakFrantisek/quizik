@@ -698,11 +698,11 @@ export default function SessionDetailPage() {
             </div>
           </form>
         ) : (
-          <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+          <div className="flex flex-col gap-4">
             <div className="space-y-1 text-sm min-w-0 flex-1">
               <p>
                 <span className="font-semibold">{t("session.playLink")}</span>{" "}
-                <a href={playUrl} target="_blank" rel="noopener" className="text-blue-500 hover:underline font-mono">
+                <a href={playUrl} target="_blank" rel="noopener" className="text-blue-500 hover:underline font-mono break-all">
                   {playUrl}
                 </a>
               </p>
@@ -729,10 +729,10 @@ export default function SessionDetailPage() {
                 {session.ends_at && ` · ${t("session.closes", { date: formatDate(session.ends_at)! })}`}
               </p>
             </div>
-            <div className="flex gap-2 flex-wrap justify-end shrink-0">
+            <div className="flex gap-2 flex-wrap">
               <button
                 onClick={() => setShowQR(true)}
-                className="flex items-center justify-center gap-1.5 text-sm text-gray-600 border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50 basis-full sm:basis-auto"
+                className="flex items-center justify-center gap-1.5 text-sm text-gray-600 border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50"
                 title="Show QR code"
               >
                 <QrCode size={14} /> {t("session.qrCode")}
