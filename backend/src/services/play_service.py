@@ -70,6 +70,7 @@ async def get_public_session_quiz(db: AsyncSession, session_slug: str) -> dict:
         "show_correct_answer": session.show_correct_answer,
         "gamification_enabled": session.gamification_enabled,
         "minigame_type": session.minigame_type,
+        "minigame_config": getattr(session, "minigame_config", None),
         "minigame_trigger_mode": session.minigame_trigger_mode,
         "minigame_trigger_n": session.minigame_trigger_n,
         "time_limit_sec": quiz.settings.get("time_limit_sec"),

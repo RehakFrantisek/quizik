@@ -34,6 +34,7 @@ interface SessionData {
   show_correct_answer: boolean;
   gamification_enabled?: boolean;
   minigame_type?: string;
+  minigame_config?: Record<string, unknown> | null;
   minigame_trigger_mode?: string;
   minigame_trigger_n?: number;
   time_limit_sec: number | null;
@@ -53,6 +54,21 @@ interface AnswerResult {
   points_awarded: number;
   correct_option_ids: string[];
   correct_texts: string[];
+}
+
+function answerToText(
+  question: Question | undefined,
+  answer: string | string[] | undefined,
+  fallback: string,
+): string {
+  if (answer == null) return fallback;
+  if (!question) return Array.isArray(answer) ? answer.join(", ") : answer;
+  const map = new Map(question.options.map((opt) => [opt.id, opt.text]));
+  if (Array.isArray(answer)) {
+    if (answer.length === 0) return fallback;
+    return answer.map((id) => map.get(id) ?? id).join(", ");
+  }
+  return map.get(answer) ?? answer;
 }
 
 type Phase = "name" | "quiz" | "minigame" | "result" | "error" | "already_attempted";
@@ -446,7 +462,7 @@ export default function PlayPage() {
               {allAnswerResults.map((ar, i) => {
                 const qs = sessionData.questions.find(qq => qq.id === ar.question_id);
                 const userAns = answers[ar.question_id];
-                const userAnsText = Array.isArray(userAns) ? userAns.join(", ") : (userAns ?? t("play.noAnswer"));
+                const userAnsText = answerToText(qs, userAns, t("play.noAnswer"));
                 const canCorrect = bonusEndCorrection && !endCorrectionUsed && !ar.is_correct;
                 return (
                   <div key={ar.question_id} className={`p-3 rounded-xl text-sm ${ar.is_correct ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}>
@@ -488,7 +504,8 @@ export default function PlayPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center py-12 px-4">
       <PlayControls />
       <Minigame
-        type={(sessionData?.minigame_type as "tap_sprint" | "typing_race" | "slider" | "random") ?? "tap_sprint"}
+        type={(sessionData?.minigame_type as "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "random") ?? "tap_sprint"}
+        config={sessionData?.minigame_config ?? null}
         durationSec={5}
         onComplete={(score) => {
           setMinigameScores((prev) => [...prev, score]);

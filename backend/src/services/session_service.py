@@ -4,7 +4,7 @@ import secrets
 import uuid
 from datetime import datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -96,6 +96,22 @@ async def create_session(db: AsyncSession, owner: User, data: SessionCreate) -> 
         leaderboard_enabled=data.leaderboard_enabled,
         gamification_enabled=data.gamification_enabled,
         minigame_type=data.minigame_type,
+        minigame_config=data.minigame_config,
+        minigame_trigger_mode=data.minigame_trigger_mode,
+        minigame_trigger_n=data.minigame_trigger_n,
+        max_repeats=data.max_repeats,
+        question_count=data.question_count,
+        shuffle_questions=data.shuffle_questions,
+        shuffle_options=data.shuffle_options,
+        anticheat_enabled=data.anticheat_enabled,
+        anticheat_tab_switch=data.anticheat_tab_switch,
+        anticheat_fast_answer=data.anticheat_fast_answer,
+        bonuses_enabled=data.bonuses_enabled,
+        bonus_eliminate=data.bonus_eliminate,
+        bonus_second_chance=data.bonus_second_chance,
+        bonus_end_correction=data.bonus_end_correction,
+        bonus_unlock_mode=data.bonus_unlock_mode,
+        bonus_unlock_x=data.bonus_unlock_x,
         allow_repeat=data.allow_repeat,
         show_correct_answer=data.show_correct_answer,
     )
@@ -272,21 +288,27 @@ async def _recalculate_attempt_score(db: AsyncSession, attempt_id: uuid.UUID) ->
 
 
 async def get_leaderboard(
-    db: AsyncSession, session_id: uuid.UUID
+    db: AsyncSession, session_id: uuid.UUID, include_in_progress: bool = False
 ) -> list[Attempt]:
-    """Return completed, visible attempts for a session sorted by score descending."""
+    """Return visible attempts for a session sorted for leaderboard display."""
     session = await db.get(QuizSession, session_id)
     if not session:
         raise NotFoundException(resource="QuizSession")
 
+    status_filter = ["completed", "in_progress"] if include_in_progress else ["completed"]
     stmt = (
         select(Attempt)
         .where(
             Attempt.session_id == session_id,
-            Attempt.status == "completed",
+            Attempt.status.in_(status_filter),
             Attempt.hidden_from_leaderboard.is_(False),
         )
-        .order_by(Attempt.score.desc().nullslast(), Attempt.completed_at.asc())
+        .order_by(
+            case((Attempt.status == "completed", 0), else_=1),
+            Attempt.score.desc().nullslast(),
+            Attempt.completed_at.asc().nullslast(),
+            Attempt.started_at.asc(),
+        )
     )
     return list((await db.execute(stmt)).scalars().all())
 
