@@ -31,7 +31,7 @@ interface MemoryPair {
   back: string;
 }
 
-type MemoryTheme = "classic" | "cosmic" | "jungle" | "ocean" | "pixel";
+type MemoryTheme = "classic" | "cosmic" | "jungle" | "ocean" | "pixel" | "custom";
 interface MemorySettings {
   pairsPerRound: number;
   rounds: number;
@@ -52,8 +52,14 @@ function getMemoryPairs(config: Record<string, unknown> | null | undefined): Mem
 
 function getMemoryTheme(config: Record<string, unknown> | null | undefined): MemoryTheme {
   const raw = typeof config?.theme === "string" ? config.theme : "classic";
-  if (["classic", "cosmic", "jungle", "ocean", "pixel"].includes(raw)) return raw as MemoryTheme;
+  if (["classic", "cosmic", "jungle", "ocean", "pixel", "custom"].includes(raw)) return raw as MemoryTheme;
   return "classic";
+}
+
+function getMemoryCustomImage(config: Record<string, unknown> | null | undefined): string | null {
+  return typeof config?.custom_image_url === "string" && config.custom_image_url.trim().length > 0
+    ? config.custom_image_url
+    : null;
 }
 
 function getMemorySettings(config: Record<string, unknown> | null | undefined, totalPairs: number): MemorySettings {
@@ -78,7 +84,7 @@ export function Minigame({ onComplete, type = "tap_sprint", durationSec = 5, all
     }
     if (resolved === "memory_pairs") {
       const pairs = getMemoryPairs(config);
-      return <MemoryPairs onComplete={onComplete} pairs={pairs} theme={getMemoryTheme(config)} settings={getMemorySettings(config, pairs.length)} />;
+      return <MemoryPairs onComplete={onComplete} pairs={pairs} theme={getMemoryTheme(config)} customImageUrl={getMemoryCustomImage(config)} settings={getMemorySettings(config, pairs.length)} />;
     }
 
     // tap_sprint (default)
@@ -104,10 +110,12 @@ function MemoryPairs({
   onComplete,
   pairs,
   theme,
+  customImageUrl,
 }: {
   onComplete: (score: number, meta?: { elapsedSec?: number }) => void;
   pairs: MemoryPair[];
   theme: MemoryTheme;
+  customImageUrl: string | null;
   settings: MemorySettings;
 }) {
   const [roundIndex, setRoundIndex] = useState(0);
@@ -189,7 +197,7 @@ function MemoryPairs({
     }
   };
 
-  const themeBack: Record<MemoryTheme, { icon: string; className: string }> = {
+  const themeBack: Record<Exclude<MemoryTheme, "custom">, { icon: string; className: string }> = {
     classic: { icon: "🃏", className: "bg-gradient-to-br from-indigo-600 to-violet-600 border-indigo-700 text-indigo-100" },
     cosmic: { icon: "🌌", className: "bg-gradient-to-br from-fuchsia-600 to-indigo-700 border-indigo-800 text-fuchsia-100" },
     jungle: { icon: "🌿", className: "bg-gradient-to-br from-emerald-600 to-green-700 border-green-800 text-emerald-100" },
@@ -228,9 +236,13 @@ function MemoryPairs({
                   {card.label}
                 </span>
               ) : (
-                <span className={`w-full h-full ${themeBack[theme].className} flex items-center justify-center text-xl md:text-2xl`}>
-                  {themeBack[theme].icon}
-                </span>
+                customImageUrl && theme === "custom" ? (
+                  <span className="w-full h-full bg-center bg-cover" style={{ backgroundImage: `url(${customImageUrl})` }} />
+                ) : (
+                  <span className={`w-full h-full ${themeBack[(theme === "custom" ? "classic" : theme)].className} flex items-center justify-center text-4xl md:text-5xl`}>
+                    {themeBack[(theme === "custom" ? "classic" : theme)].icon}
+                  </span>
+                )
               )}
             </button>
           );

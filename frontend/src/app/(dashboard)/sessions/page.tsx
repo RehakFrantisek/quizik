@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ExternalLink, Plus, Search, Trash2, AlertTriangle, Trophy, Edit2 } from "lucide-react";
 import { useLang } from "@/contexts/LangContext";
+import { getToken } from "@/lib/auth-token";
 
 interface Quiz {
   id: string;
@@ -86,6 +87,7 @@ export default function SessionsPage() {
     minigame_type: "tap_sprint",
     minigame_config: null as Record<string, unknown> | null,
     memory_theme: "classic",
+    memory_custom_image_url: "",
     memory_pairs_per_round: 4,
     memory_rounds: 1,
     minigame_trigger_mode: "every_n",
@@ -103,6 +105,8 @@ export default function SessionsPage() {
     bonus_unlock_mode: "immediate",
     bonus_unlock_x: 3,
   });
+  const memoryThemeInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingMemoryTheme, setUploadingMemoryTheme] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) router.replace("/login");
@@ -208,7 +212,13 @@ export default function SessionsPage() {
         const pairsPerRound = Math.min(Math.max(1, form.memory_pairs_per_round), selectedPairs.length);
         const rounds = Math.min(Math.max(1, form.memory_rounds), Math.floor(selectedPairs.length / pairsPerRound) || 1);
         if (selectedPairs.length === 0) throw new Error("Pexeso vyžaduje alespoň 1 aktivní pár.");
-        body.minigame_config = { pairs: selectedPairs, theme: form.memory_theme, pairs_per_round: pairsPerRound, rounds };
+        body.minigame_config = {
+          pairs: selectedPairs,
+          theme: form.memory_theme,
+          custom_image_url: form.memory_theme === "custom" ? (form.memory_custom_image_url || null) : null,
+          pairs_per_round: pairsPerRound,
+          rounds,
+        };
         body.show_correct_answer = false;
         body.question_count = 0;
         body.shuffle_questions = null;
@@ -223,7 +233,7 @@ export default function SessionsPage() {
       }
       await apiClient.post("/sessions", body);
       setShowCreate(false);
-      setForm({ quiz_id: "", title: "", starts_at: "", ends_at: "", leaderboard_enabled: true, play_mode: "quiz", max_repeats: 0, show_correct_answer: true, gamification_enabled: false, minigame_type: "tap_sprint", minigame_config: null, memory_theme: "classic", memory_pairs_per_round: 4, memory_rounds: 1, minigame_trigger_mode: "every_n", minigame_trigger_n: 3, question_count: 0, shuffle_questions: false, shuffle_options: false, anticheat_enabled: false, anticheat_tab_switch: false, anticheat_fast_answer: false, bonuses_enabled: false, bonus_eliminate: false, bonus_second_chance: false, bonus_end_correction: false, bonus_unlock_mode: "immediate", bonus_unlock_x: 3 });
+      setForm({ quiz_id: "", title: "", starts_at: "", ends_at: "", leaderboard_enabled: true, play_mode: "quiz", max_repeats: 0, show_correct_answer: true, gamification_enabled: false, minigame_type: "tap_sprint", minigame_config: null, memory_theme: "classic", memory_custom_image_url: "", memory_pairs_per_round: 4, memory_rounds: 1, minigame_trigger_mode: "every_n", minigame_trigger_n: 3, question_count: 0, shuffle_questions: false, shuffle_options: false, anticheat_enabled: false, anticheat_tab_switch: false, anticheat_fast_answer: false, bonuses_enabled: false, bonus_eliminate: false, bonus_second_chance: false, bonus_end_correction: false, bonus_unlock_mode: "immediate", bonus_unlock_x: 3 });
       setMemoryPairs([]);
       await loadSessions();
     } catch (err) {
@@ -272,6 +282,29 @@ export default function SessionsPage() {
   const safePairsPerRound = Math.min(pairsPerRoundMax, Math.max(1, form.memory_pairs_per_round));
   const roundsMax = Math.max(1, Math.floor(enabledPairCount / safePairsPerRound));
   const safeRounds = Math.min(roundsMax, Math.max(1, form.memory_rounds));
+  const themeIcons: Record<string, string> = { classic: "🃏", cosmic: "🌌", jungle: "🌿", ocean: "🌊", pixel: "🕹️" };
+
+  const uploadMemoryTheme = async (file: File) => {
+    setUploadingMemoryTheme(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const token = getToken();
+      const res = await fetch("/api/v1/uploads/question-image", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Upload motivu selhal.");
+      const data = await res.json();
+      setForm((prev) => ({ ...prev, memory_theme: "custom", memory_custom_image_url: data.url }));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Upload motivu selhal.");
+    } finally {
+      setUploadingMemoryTheme(false);
+      if (memoryThemeInputRef.current) memoryThemeInputRef.current.value = "";
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8">
@@ -398,35 +431,27 @@ export default function SessionsPage() {
                   : "Běží pouze pexeso. Měří se čas a výsledek jde do leaderboardu."}
               </p>
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Režim spuštění</label>
-              <select
-                value={form.play_mode}
-                onChange={(e) => setForm({ ...form, play_mode: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="quiz">📝 Klasický kvíz</option>
-                <option value="memory_pairs">🧠 Procvičování: Pexeso</option>
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                {form.play_mode === "quiz"
-                  ? "Otázky + volitelné minihry mezi otázkami."
-                  : "Běží pouze pexeso. Měří se čas a výsledek jde do leaderboardu."}
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2 border border-gray-200 rounded-lg p-3">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  {t("sessions.maxRepeats")} <span className="text-gray-400 font-normal text-xs">{t("sessions.maxRepeatsHint")}</span>
-                </label>
-                <input type="number" min={0} max={1000} value={form.max_repeats} onChange={(e) => setForm({ ...form, max_repeats: Math.max(0, parseInt(e.target.value) || 0) })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <label className="block text-sm font-semibold text-gray-700">{t("sessions.maxRepeats")}</label>
+                    <p className="text-xs text-gray-400">{t("sessions.maxRepeatsHint")}</p>
+                  </div>
+                  <input type="number" min={0} max={1000} value={form.max_repeats} onChange={(e) => setForm({ ...form, max_repeats: Math.max(0, parseInt(e.target.value) || 0) })} className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm text-center outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  {t("sessions.questionCount")} <span className="text-gray-400 font-normal text-xs">{t("sessions.questionCountHint")}</span>
-                </label>
-                <input type="number" min={0} value={form.question_count} onChange={(e) => setForm({ ...form, question_count: Math.max(0, parseInt(e.target.value) || 0) })} disabled={isMemoryMode} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400" />
-              </div>
+              {!isMemoryMode && (
+                <div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <label className="block text-sm font-semibold text-gray-700">{t("sessions.questionCount")}</label>
+                      <p className="text-xs text-gray-400">{t("sessions.questionCountHint")}</p>
+                    </div>
+                    <input type="number" min={0} value={form.question_count} onChange={(e) => setForm({ ...form, question_count: Math.max(0, parseInt(e.target.value) || 0) })} className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm text-center outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                </div>
+              )}
             </div>
             {!isMemoryMode && <div className="space-y-1.5">
               <p className="text-sm font-semibold text-gray-700">{t("sessions.shuffleSection")}</p>
@@ -602,8 +627,43 @@ export default function SessionsPage() {
                     <option value="jungle">🌿 Jungle</option>
                     <option value="ocean">🌊 Ocean</option>
                     <option value="pixel">🕹️ Pixel</option>
+                    <option value="custom">🖼️ Vlastní (upload)</option>
                   </select>
                 </div>
+                {form.memory_theme === "custom" && (
+                  <div className="bg-white border border-indigo-200 rounded-lg p-3 space-y-2">
+                    <p className="text-xs font-semibold text-indigo-900">Vlastní motiv kartiček</p>
+                    <input
+                      ref={memoryThemeInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void uploadMemoryTheme(file);
+                      }}
+                      className="block w-full text-xs text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-indigo-100 file:px-3 file:py-1.5 file:text-indigo-700"
+                    />
+                    {uploadingMemoryTheme && <p className="text-[11px] text-indigo-600">Nahrávám motiv…</p>}
+                    {form.memory_custom_image_url && (
+                      <div className="space-y-2">
+                        <div
+                          className="h-24 rounded-xl border border-indigo-200 bg-center bg-cover"
+                          style={{ backgroundImage: `url(${form.memory_custom_image_url})` }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!confirm("Určitě chcete motiv odebrat? Všude se nastaví classic.")) return;
+                            setForm((prev) => ({ ...prev, memory_theme: "classic", memory_custom_image_url: "" }));
+                          }}
+                          className="text-xs px-3 py-1.5 rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                        >
+                          Odebrat motiv
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold mb-1 text-indigo-900">Párů na jedno kolo</label>
@@ -671,16 +731,19 @@ export default function SessionsPage() {
                   <div className="bg-white border border-indigo-200 rounded-lg p-3">
                     <p className="text-xs font-semibold text-indigo-800 mb-2">Náhled vzhledu kartiček</p>
                     <div className="grid grid-cols-2 gap-2">
-                      {enabledPairs.slice(0, 2).map((pair, idx) => (
-                        <div key={`${pair.source_question_id}-${idx}`} className="contents">
-                          <div className="h-20 rounded-xl border border-indigo-300 bg-indigo-50 text-indigo-900 flex items-center justify-center text-[11px] px-2 text-center">
-                            {pair.front}
-                          </div>
-                          <div className="h-20 rounded-xl border border-indigo-700 bg-gradient-to-br from-indigo-600 to-violet-600 text-indigo-100 flex items-center justify-center text-2xl">
-                            {{ classic: "🃏", cosmic: "🌌", jungle: "🌿", ocean: "🌊", pixel: "🕹️" }[form.memory_theme] ?? "🃏"}
-                          </div>
+                      <div className="h-24 rounded-xl border border-indigo-300 bg-indigo-50 text-indigo-900 flex items-center justify-center text-[11px] px-2 text-center">
+                        {enabledPairs[0].front}
+                      </div>
+                      {form.memory_theme === "custom" && form.memory_custom_image_url ? (
+                        <div
+                          className="h-24 rounded-xl border border-indigo-300 bg-center bg-cover"
+                          style={{ backgroundImage: `url(${form.memory_custom_image_url})` }}
+                        />
+                      ) : (
+                        <div className="h-24 rounded-xl border border-indigo-700 bg-gradient-to-br from-indigo-600 to-violet-600 text-indigo-100 flex items-center justify-center text-4xl">
+                          {themeIcons[form.memory_theme] ?? "🃏"}
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
                 )}
