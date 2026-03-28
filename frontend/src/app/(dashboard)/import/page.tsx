@@ -44,6 +44,11 @@ interface ImportJob {
   } | null;
 }
 
+interface QuizLite {
+  id: string;
+  title: string;
+}
+
 type Phase = "upload" | "processing" | "review" | "done" | "error";
 
 export default function ImportPage() {
@@ -60,6 +65,9 @@ export default function ImportPage() {
   const [quizTitle, setQuizTitle] = useState("");
   const [quizDesc, setQuizDesc] = useState("");
   const [confirming, setConfirming] = useState(false);
+  const [importMode, setImportMode] = useState<"create_new" | "append_existing">("create_new");
+  const [existingQuizId, setExistingQuizId] = useState("");
+  const [ownedQuizzes, setOwnedQuizzes] = useState<QuizLite[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -70,6 +78,13 @@ export default function ImportPage() {
   useEffect(() => {
     return () => { if (pollRef.current) clearTimeout(pollRef.current); };
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    apiClient.get("/quizzes")
+      .then((data) => setOwnedQuizzes(Array.isArray(data) ? data : []))
+      .catch(() => setOwnedQuizzes([]));
+  }, [user]);
 
   const uploadFile = async (file: File) => {
     setUploading(true);
@@ -131,6 +146,8 @@ export default function ImportPage() {
       const data = await apiClient.post(`/import/jobs/${job.id}/confirm`, {
         title: quizTitle,
         description: quizDesc || null,
+        mode: importMode,
+        existing_quiz_id: importMode === "append_existing" ? existingQuizId : null,
         questions,
       } as Record<string, unknown>);
       setPhase("done");
@@ -243,13 +260,41 @@ export default function ImportPage() {
           <div className="bg-white border rounded-xl p-5 shadow-sm space-y-3">
             <h2 className="font-bold text-gray-800">{t("import.quizDetails")}</h2>
             <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Import mode</label>
+              <select
+                value={importMode}
+                onChange={(e) => setImportMode(e.target.value as "create_new" | "append_existing")}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              >
+                <option value="create_new">Create new quiz</option>
+                <option value="append_existing">Append to existing quiz</option>
+              </select>
+            </div>
+            {importMode === "append_existing" && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Target quiz</label>
+                <select
+                  value={existingQuizId}
+                  onChange={(e) => setExistingQuizId(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  required
+                >
+                  <option value="">Select quiz…</option>
+                  {ownedQuizzes.map((q) => (
+                    <option key={q.id} value={q.id}>{q.title}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">{t("import.titleLabel")} <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 value={quizTitle}
                 onChange={(e) => setQuizTitle(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-                required
+                required={importMode === "create_new"}
+                disabled={importMode === "append_existing"}
               />
             </div>
             <div>
@@ -299,7 +344,7 @@ export default function ImportPage() {
           <div className="flex gap-3">
             <button
               onClick={confirmImport}
-              disabled={confirming || questions.length === 0 || !quizTitle.trim()}
+              disabled={confirming || questions.length === 0 || (importMode === "create_new" ? !quizTitle.trim() : !existingQuizId)}
               className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50"
             >
               {confirming ? <Loader size={16} className="animate-spin" /> : <Upload size={16} />}
