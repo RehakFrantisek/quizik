@@ -16,6 +16,8 @@ interface Session {
   session_slug: string;
   status: string;
   leaderboard_enabled: boolean;
+  play_mode?: "quiz" | "memory_pairs" | string;
+  minigame_config?: Record<string, unknown> | null;
   gamification_enabled: boolean;
   minigame_type: string;
   minigame_trigger_mode: string;
@@ -206,6 +208,20 @@ export default function SessionDetailPage() {
       else body.title = null;
       body.starts_at = settingsForm.starts_at ? new Date(settingsForm.starts_at).toISOString() : null;
       body.ends_at = settingsForm.ends_at ? new Date(settingsForm.ends_at).toISOString() : null;
+      if (session?.play_mode === "memory_pairs") {
+        body.show_correct_answer = false;
+        body.gamification_enabled = false;
+        body.question_count = 0;
+        body.shuffle_questions = null;
+        body.shuffle_options = null;
+        body.anticheat_enabled = false;
+        body.anticheat_tab_switch = false;
+        body.anticheat_fast_answer = false;
+        body.bonuses_enabled = false;
+        body.bonus_eliminate = false;
+        body.bonus_second_chance = false;
+        body.bonus_end_correction = false;
+      }
       await apiClient.patch(`/sessions/${id}`, body);
       setEditingSettings(false);
       await load();
@@ -293,6 +309,7 @@ export default function SessionDetailPage() {
 
   const completed = attempts.filter((a) => a.status === "completed");
   const visible = completed.filter((a) => !a.hidden_from_leaderboard);
+  const isMemoryMode = session.play_mode === "memory_pairs";
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8">
@@ -367,6 +384,9 @@ export default function SessionDetailPage() {
         >
           {t(`status.${effectiveStatus}`) || effectiveStatus}
         </span>
+        <span className={`text-xs px-2 py-0.5 rounded-full font-bold border ${isMemoryMode ? "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200" : "bg-slate-50 text-slate-700 border-slate-200"}`}>
+          {isMemoryMode ? "🧠 Pexeso" : "📝 Kvíz"}
+        </span>
       </div>
 
       {/* Info card */}
@@ -405,14 +425,18 @@ export default function SessionDetailPage() {
                   <input type="checkbox" checked={settingsForm.leaderboard_enabled} onChange={(e) => setSettingsForm({ ...settingsForm, leaderboard_enabled: e.target.checked })} className="w-4 h-4 rounded" />
                   <span className="text-sm font-semibold text-gray-700">{t("sessions.leaderboard")}</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={settingsForm.show_correct_answer} onChange={(e) => setSettingsForm({ ...settingsForm, show_correct_answer: e.target.checked })} className="w-4 h-4 rounded" />
-                  <span className="text-sm font-semibold text-gray-700">{t("sessions.showAnswers")}</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={settingsForm.gamification_enabled} onChange={(e) => setSettingsForm({ ...settingsForm, gamification_enabled: e.target.checked })} className="w-4 h-4 rounded" />
-                  <span className="text-sm font-semibold text-gray-700">{t("sessions.minigames")}</span>
-                </label>
+                {!isMemoryMode && (
+                  <>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={settingsForm.show_correct_answer} onChange={(e) => setSettingsForm({ ...settingsForm, show_correct_answer: e.target.checked })} className="w-4 h-4 rounded" />
+                      <span className="text-sm font-semibold text-gray-700">{t("sessions.showAnswers")}</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={settingsForm.gamification_enabled} onChange={(e) => setSettingsForm({ ...settingsForm, gamification_enabled: e.target.checked })} className="w-4 h-4 rounded" />
+                      <span className="text-sm font-semibold text-gray-700">{t("sessions.minigames")}</span>
+                    </label>
+                  </>
+                )}
               </div>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
@@ -422,15 +446,17 @@ export default function SessionDetailPage() {
                   </div>
                   <input type="number" min={0} max={1000} value={settingsForm.max_repeats} onChange={(e) => setSettingsForm({ ...settingsForm, max_repeats: Math.max(0, parseInt(e.target.value) || 0) })} className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm text-center outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <label className="block text-sm font-semibold text-gray-700">{t("sessions.questionCount")}</label>
-                    <p className="text-xs text-gray-400">{t("sessions.questionCountHint")}</p>
+                {!isMemoryMode && (
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <label className="block text-sm font-semibold text-gray-700">{t("sessions.questionCount")}</label>
+                      <p className="text-xs text-gray-400">{t("sessions.questionCountHint")}</p>
+                    </div>
+                    <input type="number" min={0} value={settingsForm.question_count} onChange={(e) => setSettingsForm({ ...settingsForm, question_count: Math.max(0, parseInt(e.target.value) || 0) })} className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm text-center outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
-                  <input type="number" min={0} value={settingsForm.question_count} onChange={(e) => setSettingsForm({ ...settingsForm, question_count: Math.max(0, parseInt(e.target.value) || 0) })} className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm text-center outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
+                )}
               </div>
-              <div className="space-y-1.5">
+              {!isMemoryMode && <div className="space-y-1.5">
                 <p className="text-sm font-semibold text-gray-700">{t("sessions.shuffleSection")}</p>
                 <div className="flex gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -442,8 +468,8 @@ export default function SessionDetailPage() {
                     <span className="text-sm text-gray-700">{t("sessions.shuffleOptions")}</span>
                   </label>
                 </div>
-              </div>
-              <div className="space-y-1.5">
+              </div>}
+              {!isMemoryMode && <div className="space-y-1.5">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={settingsForm.anticheat_enabled} onChange={(e) => setSettingsForm({ ...settingsForm, anticheat_enabled: e.target.checked })} className="w-4 h-4 rounded" />
                   <span className="text-sm font-semibold text-gray-700">{t("sessions.anticheatEnabled")}</span>
@@ -461,9 +487,9 @@ export default function SessionDetailPage() {
                     <p className="text-xs text-gray-400">{t("sessions.anticheatNote")}</p>
                   </div>
                 )}
-              </div>
+              </div>}
               {/* Bonuses section */}
-              <div className="space-y-1.5">
+              {!isMemoryMode && <div className="space-y-1.5">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={settingsForm.bonuses_enabled} onChange={(e) => setSettingsForm({ ...settingsForm, bonuses_enabled: e.target.checked })} className="w-4 h-4 rounded" />
                   <span className="text-sm font-semibold text-gray-700">{t("sessions.bonusesEnabled")}</span>
@@ -510,9 +536,9 @@ export default function SessionDetailPage() {
                     </div>
                   </div>
                 )}
-              </div>
+              </div>}
 
-              {settingsForm.gamification_enabled && (
+              {!isMemoryMode && settingsForm.gamification_enabled && (
                 <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 text-xs text-indigo-700 space-y-3">
                   <p className="font-semibold text-sm">{t("sessions.minigameSettings")}</p>
 
@@ -595,8 +621,9 @@ export default function SessionDetailPage() {
                 {(session.max_repeats ?? 0) === 0
                   ? t("session.repeatsAllowed")
                   : `${t("sessions.maxRepeats")}: ${session.max_repeats}`} ·{" "}
-                {session.show_correct_answer ? t("session.answersShown") : t("session.answersHidden")} ·{" "}
-                {session.gamification_enabled ? t("session.minigamesOn") : t("session.noMinigames")}
+                {isMemoryMode
+                  ? "Režim pexeso"
+                  : `${session.show_correct_answer ? t("session.answersShown") : t("session.answersHidden")} · ${session.gamification_enabled ? t("session.minigamesOn") : t("session.noMinigames")}`}
                 {session.starts_at && ` · ${t("session.opens", { date: formatDate(session.starts_at)! })}`}
                 {session.ends_at && ` · ${t("session.closes", { date: formatDate(session.ends_at)! })}`}
               </p>

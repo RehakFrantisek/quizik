@@ -32,6 +32,10 @@ interface MemoryPair {
 }
 
 type MemoryTheme = "classic" | "cosmic" | "jungle" | "ocean" | "pixel";
+interface MemorySettings {
+  pairsPerRound: number;
+  rounds: number;
+}
 
 function getMemoryPairs(config: Record<string, unknown> | null | undefined): MemoryPair[] {
   if (!config || !Array.isArray(config.pairs)) return [];
@@ -52,6 +56,16 @@ function getMemoryTheme(config: Record<string, unknown> | null | undefined): Mem
   return "classic";
 }
 
+function getMemorySettings(config: Record<string, unknown> | null | undefined, totalPairs: number): MemorySettings {
+  const rawPairsPerRound = Number(config?.pairs_per_round ?? 4);
+  const rawRounds = Number(config?.rounds ?? 1);
+  const maxPairs = Math.max(1, totalPairs);
+  const pairsPerRound = Math.min(maxPairs, Math.max(1, Number.isFinite(rawPairsPerRound) ? Math.floor(rawPairsPerRound) : 4));
+  const maxRounds = Math.max(1, Math.floor(maxPairs / pairsPerRound));
+  const rounds = Math.min(maxRounds, Math.max(1, Number.isFinite(rawRounds) ? Math.floor(rawRounds) : 1));
+  return { pairsPerRound, rounds };
+}
+
 export function Minigame({ onComplete, type = "tap_sprint", durationSec = 5, allowSkip = true, config = null }: Props) {
   const resolved = useRef(resolveType(type)).current;
 
@@ -63,7 +77,8 @@ export function Minigame({ onComplete, type = "tap_sprint", durationSec = 5, all
       return <SliderGame onComplete={onComplete} durationSec={15} />;
     }
     if (resolved === "memory_pairs") {
-      return <MemoryPairs onComplete={onComplete} pairs={getMemoryPairs(config)} theme={getMemoryTheme(config)} />;
+      const pairs = getMemoryPairs(config);
+      return <MemoryPairs onComplete={onComplete} pairs={pairs} theme={getMemoryTheme(config)} settings={getMemorySettings(config, pairs.length)} />;
     }
 
     // tap_sprint (default)
@@ -93,28 +108,48 @@ function MemoryPairs({
   onComplete: (score: number, meta?: { elapsedSec?: number }) => void;
   pairs: MemoryPair[];
   theme: MemoryTheme;
+  settings: MemorySettings;
 }) {
+  const [roundIndex, setRoundIndex] = useState(0);
   const [flipped, setFlipped] = useState<number[]>([]);
   const [matched, setMatched] = useState<Set<number>>(new Set());
   const startedAt = useRef<number>(Date.now());
   const [elapsedSec, setElapsedSec] = useState(0);
 
+  const rounds = useMemo(() => {
+    if (pairs.length === 0) return [];
+    const shuffled = [...pairs].sort(() => Math.random() - 0.5);
+    const needed = settings.pairsPerRound * settings.rounds;
+    const limited = shuffled.slice(0, needed);
+    const output: MemoryPair[][] = [];
+    for (let i = 0; i < settings.rounds; i += 1) {
+      output.push(limited.slice(i * settings.pairsPerRound, (i + 1) * settings.pairsPerRound));
+    }
+    return output.filter((r) => r.length > 0);
+  }, [pairs, settings.pairsPerRound, settings.rounds]);
+
+  const activeRoundPairs = rounds[roundIndex] ?? [];
+  useEffect(() => {
+    setRoundIndex(0);
+  }, [settings.pairsPerRound, settings.rounds, pairs.length]);
+
   const cards = useMemo(() => {
-    const selected = pairs.slice(0, 4);
-    if (selected.length === 0) return [];
-    const pool = selected.flatMap((p, idx) => ([
+    if (activeRoundPairs.length === 0) return [];
+    const pool = activeRoundPairs.flatMap((p, idx) => ([
       { pairId: idx, label: p.front },
       { pairId: idx, label: p.back },
     ]));
     return [...pool].sort(() => Math.random() - 0.5);
-  }, [pairs]);
+  }, [activeRoundPairs, roundIndex]);
 
   useEffect(() => {
     setFlipped([]);
     setMatched(new Set());
-    startedAt.current = Date.now();
-    setElapsedSec(0);
-  }, [cards.length]);
+    if (roundIndex === 0) {
+      startedAt.current = Date.now();
+      setElapsedSec(0);
+    }
+  }, [cards.length, roundIndex]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -124,14 +159,20 @@ function MemoryPairs({
   }, []);
 
   useEffect(() => {
-    if (cards.length === 0) return;
+    if (cards.length === 0 || rounds.length === 0) return;
     if (matched.size === cards.length) {
-      const score = pairs.length > 0 ? 100 : 0;
-      const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt.current) / 1000));
-      const timer = setTimeout(() => onComplete(score, { elapsedSec }), 600);
+      if (roundIndex < rounds.length - 1) {
+        const timer = setTimeout(() => {
+          setRoundIndex((prev) => prev + 1);
+        }, 450);
+        return () => clearTimeout(timer);
+      }
+      const score = rounds.length > 0 ? 100 : 0;
+      const elapsedSecFinal = Math.max(1, Math.round((Date.now() - startedAt.current) / 1000));
+      const timer = setTimeout(() => onComplete(score, { elapsedSec: elapsedSecFinal }), 600);
       return () => clearTimeout(timer);
     }
-  }, [matched, cards.length, onComplete, pairs.length]);
+  }, [matched, cards.length, onComplete, roundIndex, rounds.length]);
 
   const clickCard = (idx: number) => {
     if (matched.has(idx) || flipped.includes(idx) || flipped.length >= 2) return;
@@ -148,8 +189,6 @@ function MemoryPairs({
     }
   };
 
-  const longestTextLength = cards.reduce((max, c) => Math.max(max, c.label.length), 0);
-  const cardHeightClass = longestTextLength > 95 ? "h-36" : longestTextLength > 65 ? "h-28" : "h-24";
   const themeBack: Record<MemoryTheme, { icon: string; className: string }> = {
     classic: { icon: "🃏", className: "bg-gradient-to-br from-indigo-600 to-violet-600 border-indigo-700 text-indigo-100" },
     cosmic: { icon: "🌌", className: "bg-gradient-to-br from-fuchsia-600 to-indigo-700 border-indigo-800 text-fuchsia-100" },
@@ -182,16 +221,24 @@ function MemoryPairs({
             <button
               key={`${card.pairId}-${idx}`}
               onClick={() => clickCard(idx)}
-              className={`${cardHeightClass} rounded-2xl border text-xs px-2 transition-all shadow-sm ${isOpen ? "bg-indigo-50 border-indigo-300 text-indigo-900" : themeBack[theme].className}`}
+              className="h-28 md:h-32 rounded-2xl border shadow-sm transition-transform duration-200 active:scale-[0.98] overflow-hidden"
             >
-              <span className="block leading-snug">
-                {isOpen ? card.label : `${themeBack[theme].icon} ?`}
-              </span>
+              {isOpen ? (
+                <span className="w-full h-full bg-indigo-50 border-indigo-300 text-indigo-900 flex items-center justify-center px-2 text-xs md:text-sm leading-snug">
+                  {card.label}
+                </span>
+              ) : (
+                <span className={`w-full h-full ${themeBack[theme].className} flex items-center justify-center text-xl md:text-2xl`}>
+                  {themeBack[theme].icon}
+                </span>
+              )}
             </button>
           );
         })}
       </div>
-      <p className="text-[11px] text-gray-500 mt-3">Pairs: {matched.size / 2}/{cards.length / 2}</p>
+      <p className="text-[11px] text-gray-500 mt-3">
+        Pairs: {matched.size / 2}/{cards.length / 2} • Round {Math.min(roundIndex + 1, rounds.length)}/{rounds.length}
+      </p>
     </div>
   );
 }

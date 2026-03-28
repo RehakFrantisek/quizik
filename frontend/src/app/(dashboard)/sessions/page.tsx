@@ -22,6 +22,8 @@ interface Session {
   session_slug: string;
   status: string;
   leaderboard_enabled: boolean;
+  play_mode?: "quiz" | "memory_pairs" | string;
+  minigame_config?: Record<string, unknown> | null;
   allow_repeat: boolean;
   show_correct_answer: boolean;
   gamification_enabled: boolean;
@@ -84,6 +86,8 @@ export default function SessionsPage() {
     minigame_type: "tap_sprint",
     minigame_config: null as Record<string, unknown> | null,
     memory_theme: "classic",
+    memory_pairs_per_round: 4,
+    memory_rounds: 1,
     minigame_trigger_mode: "every_n",
     minigame_trigger_n: 3,
     question_count: 0,
@@ -195,18 +199,31 @@ export default function SessionsPage() {
       body.minigame_trigger_n = form.minigame_trigger_n;
       if (form.play_mode === "memory_pairs") {
         body.gamification_enabled = false;
-        const selectedPairs = memoryPairs
-          .filter((p) => p.enabled && p.front.trim() && p.back.trim())
+        const selectedPairs = enabledPairs
           .map((p) => ({
             source_question_id: p.source_question_id,
             front: p.front.trim(),
             back: p.back.trim(),
           }));
-        body.minigame_config = { pairs: selectedPairs, theme: form.memory_theme };
+        const pairsPerRound = Math.min(Math.max(1, form.memory_pairs_per_round), selectedPairs.length);
+        const rounds = Math.min(Math.max(1, form.memory_rounds), Math.floor(selectedPairs.length / pairsPerRound) || 1);
+        if (selectedPairs.length === 0) throw new Error("Pexeso vyžaduje alespoň 1 aktivní pár.");
+        body.minigame_config = { pairs: selectedPairs, theme: form.memory_theme, pairs_per_round: pairsPerRound, rounds };
+        body.show_correct_answer = false;
+        body.question_count = 0;
+        body.shuffle_questions = null;
+        body.shuffle_options = null;
+        body.anticheat_enabled = false;
+        body.anticheat_tab_switch = false;
+        body.anticheat_fast_answer = false;
+        body.bonuses_enabled = false;
+        body.bonus_eliminate = false;
+        body.bonus_second_chance = false;
+        body.bonus_end_correction = false;
       }
       await apiClient.post("/sessions", body);
       setShowCreate(false);
-      setForm({ quiz_id: "", title: "", starts_at: "", ends_at: "", leaderboard_enabled: true, play_mode: "quiz", max_repeats: 0, show_correct_answer: true, gamification_enabled: false, minigame_type: "tap_sprint", minigame_config: null, memory_theme: "classic", minigame_trigger_mode: "every_n", minigame_trigger_n: 3, question_count: 0, shuffle_questions: false, shuffle_options: false, anticheat_enabled: false, anticheat_tab_switch: false, anticheat_fast_answer: false, bonuses_enabled: false, bonus_eliminate: false, bonus_second_chance: false, bonus_end_correction: false, bonus_unlock_mode: "immediate", bonus_unlock_x: 3 });
+      setForm({ quiz_id: "", title: "", starts_at: "", ends_at: "", leaderboard_enabled: true, play_mode: "quiz", max_repeats: 0, show_correct_answer: true, gamification_enabled: false, minigame_type: "tap_sprint", minigame_config: null, memory_theme: "classic", memory_pairs_per_round: 4, memory_rounds: 1, minigame_trigger_mode: "every_n", minigame_trigger_n: 3, question_count: 0, shuffle_questions: false, shuffle_options: false, anticheat_enabled: false, anticheat_tab_switch: false, anticheat_fast_answer: false, bonuses_enabled: false, bonus_eliminate: false, bonus_second_chance: false, bonus_end_correction: false, bonus_unlock_mode: "immediate", bonus_unlock_x: 3 });
       setMemoryPairs([]);
       await loadSessions();
     } catch (err) {
@@ -248,6 +265,13 @@ export default function SessionsPage() {
   });
 
   const publishedQuizzes = quizzes.filter((q) => q.status === "published");
+  const isMemoryMode = form.play_mode === "memory_pairs";
+  const enabledPairs = memoryPairs.filter((p) => p.enabled && p.front.trim() && p.back.trim());
+  const enabledPairCount = enabledPairs.length;
+  const pairsPerRoundMax = Math.max(1, enabledPairCount);
+  const safePairsPerRound = Math.min(pairsPerRoundMax, Math.max(1, form.memory_pairs_per_round));
+  const roundsMax = Math.max(1, Math.floor(enabledPairCount / safePairsPerRound));
+  const safeRounds = Math.min(roundsMax, Math.max(1, form.memory_rounds));
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8">
@@ -345,14 +369,34 @@ export default function SessionsPage() {
                 <input type="checkbox" checked={form.leaderboard_enabled} onChange={(e) => setForm({ ...form, leaderboard_enabled: e.target.checked })} className="w-4 h-4 rounded" />
                 <span className="text-sm font-semibold text-gray-700">{t("sessions.leaderboard")}</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={form.show_correct_answer} onChange={(e) => setForm({ ...form, show_correct_answer: e.target.checked })} className="w-4 h-4 rounded" />
-                <span className="text-sm font-semibold text-gray-700">{t("sessions.showAnswers")}</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={form.gamification_enabled} onChange={(e) => setForm({ ...form, gamification_enabled: e.target.checked })} className="w-4 h-4 rounded" />
-                <span className="text-sm font-semibold text-gray-700">{t("sessions.minigames")}</span>
-              </label>
+              {!isMemoryMode && (
+                <>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={form.show_correct_answer} onChange={(e) => setForm({ ...form, show_correct_answer: e.target.checked })} className="w-4 h-4 rounded" />
+                    <span className="text-sm font-semibold text-gray-700">{t("sessions.showAnswers")}</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={form.gamification_enabled} onChange={(e) => setForm({ ...form, gamification_enabled: e.target.checked })} className="w-4 h-4 rounded" />
+                    <span className="text-sm font-semibold text-gray-700">{t("sessions.minigames")}</span>
+                  </label>
+                </>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Režim spuštění</label>
+              <select
+                value={form.play_mode}
+                onChange={(e) => setForm({ ...form, play_mode: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="quiz">📝 Klasický kvíz</option>
+                <option value="memory_pairs">🧠 Procvičování: Pexeso</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                {form.play_mode === "quiz"
+                  ? "Otázky + volitelné minihry mezi otázkami."
+                  : "Běží pouze pexeso. Měří se čas a výsledek jde do leaderboardu."}
+              </p>
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">Režim spuštění</label>
@@ -381,10 +425,10 @@ export default function SessionsPage() {
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
                   {t("sessions.questionCount")} <span className="text-gray-400 font-normal text-xs">{t("sessions.questionCountHint")}</span>
                 </label>
-                <input type="number" min={0} value={form.question_count} onChange={(e) => setForm({ ...form, question_count: Math.max(0, parseInt(e.target.value) || 0) })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+                <input type="number" min={0} value={form.question_count} onChange={(e) => setForm({ ...form, question_count: Math.max(0, parseInt(e.target.value) || 0) })} disabled={isMemoryMode} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400" />
               </div>
             </div>
-            <div className="space-y-1.5">
+            {!isMemoryMode && <div className="space-y-1.5">
               <p className="text-sm font-semibold text-gray-700">{t("sessions.shuffleSection")}</p>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -396,8 +440,8 @@ export default function SessionsPage() {
                   <span className="text-sm text-gray-700">{t("sessions.shuffleOptions")}</span>
                 </label>
               </div>
-            </div>
-            <div className="space-y-1.5">
+            </div>}
+            {!isMemoryMode && <div className="space-y-1.5">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.anticheat_enabled} onChange={(e) => setForm({ ...form, anticheat_enabled: e.target.checked })} className="w-4 h-4 rounded" />
                 <span className="text-sm font-semibold text-gray-700">{t("sessions.anticheatEnabled")}</span>
@@ -415,9 +459,9 @@ export default function SessionsPage() {
                   <p className="text-xs text-gray-400">{t("sessions.anticheatNote")}</p>
                 </div>
               )}
-            </div>
+            </div>}
             {/* Bonuses */}
-            <div className="space-y-2">
+            {!isMemoryMode && <div className="space-y-2">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.bonuses_enabled} onChange={(e) => setForm({ ...form, bonuses_enabled: e.target.checked })} className="w-4 h-4 rounded" />
                 <span className="text-sm font-semibold text-gray-700">{t("sessions.bonusesEnabled")}</span>
@@ -457,7 +501,7 @@ export default function SessionsPage() {
                   </div>
                 </div>
               )}
-            </div>
+            </div>}
 
             {form.play_mode === "quiz" && form.gamification_enabled && (
               <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 text-xs text-indigo-700 space-y-3">
@@ -560,6 +604,32 @@ export default function SessionsPage() {
                     <option value="pixel">🕹️ Pixel</option>
                   </select>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-indigo-900">Párů na jedno kolo</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={pairsPerRoundMax}
+                      value={safePairsPerRound}
+                      onChange={(e) => setForm({ ...form, memory_pairs_per_round: Math.max(1, parseInt(e.target.value) || 1) })}
+                      className="w-full border border-indigo-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-700 outline-none"
+                    />
+                    <p className="text-[11px] text-indigo-600 mt-1">Max: {pairsPerRoundMax} (aktivní páry)</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-indigo-900">Počet kol</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={roundsMax}
+                      value={safeRounds}
+                      onChange={(e) => setForm({ ...form, memory_rounds: Math.max(1, parseInt(e.target.value) || 1) })}
+                      className="w-full border border-indigo-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-700 outline-none"
+                    />
+                    <p className="text-[11px] text-indigo-600 mt-1">Max: {roundsMax} (pairs/kolo × kola ≤ aktivní páry)</p>
+                  </div>
+                </div>
                 <div className="bg-white border border-indigo-200 rounded-lg p-3 space-y-2">
                   <p className="text-xs font-semibold text-indigo-800">
                     Vyber a uprav páry ({memoryPairs.filter((p) => p.enabled).length}/{memoryPairs.length})
@@ -597,6 +667,23 @@ export default function SessionsPage() {
                     </div>
                   )}
                 </div>
+                {enabledPairCount > 0 && (
+                  <div className="bg-white border border-indigo-200 rounded-lg p-3">
+                    <p className="text-xs font-semibold text-indigo-800 mb-2">Náhled vzhledu kartiček</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {enabledPairs.slice(0, 2).map((pair, idx) => (
+                        <div key={`${pair.source_question_id}-${idx}`} className="contents">
+                          <div className="h-20 rounded-xl border border-indigo-300 bg-indigo-50 text-indigo-900 flex items-center justify-center text-[11px] px-2 text-center">
+                            {pair.front}
+                          </div>
+                          <div className="h-20 rounded-xl border border-indigo-700 bg-gradient-to-br from-indigo-600 to-violet-600 text-indigo-100 flex items-center justify-center text-2xl">
+                            {{ classic: "🃏", cosmic: "🌌", jungle: "🌿", ocean: "🌊", pixel: "🕹️" }[form.memory_theme] ?? "🃏"}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -661,6 +748,9 @@ export default function SessionsPage() {
                     {!s.allow_repeat && (
                       <span className="text-xs px-2 py-0.5 rounded-full font-bold border bg-orange-50 text-orange-700 border-orange-200">{t("session.oneAttemptPerDevice")}</span>
                     )}
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-bold border ${s.play_mode === "memory_pairs" ? "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200" : "bg-slate-50 text-slate-700 border-slate-200"}`}>
+                      {s.play_mode === "memory_pairs" ? "🧠 Pexeso" : "📝 Kvíz"}
+                    </span>
                     {s.gamification_enabled && (
                       <span className="text-xs px-2 py-0.5 rounded-full font-bold border bg-indigo-50 text-indigo-700 border-indigo-200">{t("session.minigamesOn")}</span>
                     )}
@@ -671,7 +761,7 @@ export default function SessionsPage() {
                   <p className="text-sm text-gray-500">
                     {s.attempt_count} {t("session.attempts").toLowerCase()} •{" "}
                     {s.leaderboard_enabled ? t("sessions.leaderboardOn") : t("sessions.leaderboardOff")}
-                    {!s.show_correct_answer && ` • ${t("session.answersHidden")}`}
+                    {s.play_mode !== "memory_pairs" && !s.show_correct_answer && ` • ${t("session.answersHidden")}`}
                     {s.starts_at && ` • ${t("session.opens", { date: formatDate(s.starts_at)! })}`}
                     {s.ends_at && ` • ${t("session.closes", { date: formatDate(s.ends_at)! })}`}
                   </p>
