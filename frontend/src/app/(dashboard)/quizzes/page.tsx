@@ -6,9 +6,9 @@ import Link from "next/link";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  ArrowDownToLine,
   ArrowUpFromLine,
   Copy,
+  Download,
   Edit,
   PlusCircle,
   Trash2,
@@ -606,7 +606,7 @@ export default function QuizzesDashboard() {
                     className="flex items-center gap-1.5 text-gray-700 hover:text-white hover:bg-gray-600 bg-gray-50 border border-gray-200 text-sm px-2.5 py-1.5 rounded-xl transition-all"
                     title="Export"
                   >
-                    <ArrowDownToLine size={14} />
+                    <Download size={14} />
                     <span className="hidden sm:inline">Export</span>
                   </button>
                   <button onClick={() => setDeletingId(quiz.id)}
