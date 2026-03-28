@@ -9,6 +9,7 @@ interface Props {
   onComplete: (score: number) => void;
   type?: "tap_sprint" | "typing_race" | "slider" | "random";
   durationSec?: number;
+  allowSkip?: boolean;
 }
 
 const RANDOM_TYPES: Array<"tap_sprint" | "typing_race" | "slider"> = [
@@ -24,18 +25,34 @@ function resolveType(type: Props["type"]): "tap_sprint" | "typing_race" | "slide
   return type ?? "tap_sprint";
 }
 
-export function Minigame({ onComplete, type = "tap_sprint", durationSec = 5 }: Props) {
+export function Minigame({ onComplete, type = "tap_sprint", durationSec = 5, allowSkip = true }: Props) {
   const resolved = useRef(resolveType(type)).current;
 
+  const content = (() => {
   if (resolved === "typing_race") {
-    return <TypingRace onComplete={onComplete} durationSec={20} />;
+      return <TypingRace onComplete={onComplete} durationSec={20} />;
   }
   if (resolved === "slider") {
-    return <SliderGame onComplete={onComplete} durationSec={15} />;
+      return <SliderGame onComplete={onComplete} durationSec={15} />;
   }
 
   // tap_sprint (default)
-  return <TapSprint onComplete={onComplete} durationSec={durationSec} />;
+    return <TapSprint onComplete={onComplete} durationSec={durationSec} />;
+  })();
+
+  return (
+    <div className="relative">
+      {allowSkip && (
+        <button
+          onClick={() => onComplete(0)}
+          className="absolute -top-3 right-0 z-10 text-xs font-semibold px-3 py-1.5 rounded-full bg-white/90 border border-gray-200 text-gray-700 hover:bg-white shadow-sm"
+        >
+          Skip
+        </button>
+      )}
+      {content}
+    </div>
+  );
 }
 
 // ── Tap Sprint (original) ──────────────────────────────────────────────────────
