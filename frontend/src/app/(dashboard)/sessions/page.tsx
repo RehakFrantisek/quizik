@@ -472,9 +472,49 @@ export default function SessionsPage() {
                     <option value="tap_sprint">⚡ Tap Sprint</option>
                     <option value="typing_race">⌨️ Typing Race</option>
                     <option value="slider">🎯 Aim & Hit</option>
+                    <option value="memory_pairs">🧠 Pexeso (Q ↔ A)</option>
                     <option value="random">🎲 Random each time</option>
                   </select>
                 </div>
+                {form.minigame_type === "memory_pairs" && (
+                  <div className="bg-white border border-indigo-200 rounded-lg p-3 space-y-2">
+                    <p className="text-xs font-semibold text-indigo-800">
+                      Vyber a uprav páry pro toto spuštění ({memoryPairs.filter((p) => p.enabled).length}/{memoryPairs.length})
+                    </p>
+                    {memoryPairs.length === 0 ? (
+                      <p className="text-xs text-gray-500">Vybraný quiz nemá single-choice otázky se správnou odpovědí.</p>
+                    ) : (
+                      <div className="max-h-52 overflow-auto space-y-2 pr-1">
+                        {memoryPairs.map((pair, idx) => (
+                          <div key={pair.source_question_id} className="border border-gray-200 rounded-lg p-2">
+                            <label className="flex items-center gap-2 text-xs font-semibold mb-2">
+                              <input
+                                type="checkbox"
+                                checked={pair.enabled}
+                                onChange={(e) => setMemoryPairs((prev) => prev.map((p) => p.source_question_id === pair.source_question_id ? { ...p, enabled: e.target.checked } : p))}
+                              />
+                              Pair {idx + 1}
+                            </label>
+                            <input
+                              type="text"
+                              value={pair.front}
+                              onChange={(e) => setMemoryPairs((prev) => prev.map((p) => p.source_question_id === pair.source_question_id ? { ...p, front: e.target.value } : p))}
+                              className="w-full border border-gray-300 rounded px-2 py-1 text-xs mb-1"
+                              placeholder="Front (question text)"
+                            />
+                            <input
+                              type="text"
+                              value={pair.back}
+                              onChange={(e) => setMemoryPairs((prev) => prev.map((p) => p.source_question_id === pair.source_question_id ? { ...p, back: e.target.value } : p))}
+                              className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                              placeholder="Back (correct answer)"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div>
                   <label className="block text-xs font-semibold mb-1">{t("sessions.whenToShow")}</label>
                   <select
