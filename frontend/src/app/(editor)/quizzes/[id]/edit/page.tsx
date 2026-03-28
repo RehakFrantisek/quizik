@@ -41,6 +41,8 @@ interface MemoryPairPreview {
   answerTrimmed: boolean;
 }
 
+type GamePreviewType = "memory_pairs" | "beat_tap" | "color_switch" | "risk_button";
+
 const MEMORY_TEXT_LIMIT = 64;
 
 function trimForCard(text: string, limit = MEMORY_TEXT_LIMIT): { display: string; trimmed: boolean } {
@@ -84,6 +86,7 @@ export default function QuizEditor() {
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   const [isAddingQuestion, setIsAddingQuestion] = useState(false);
   const [showMemoryPreview, setShowMemoryPreview] = useState(false);
+  const [selectedGamePreview, setSelectedGamePreview] = useState<GamePreviewType>("memory_pairs");
   const addQuestionRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -347,25 +350,14 @@ export default function QuizEditor() {
             <h2 className="text-2xl font-black text-gray-800">{t("editor.questions")} <span className="text-gray-400 font-medium text-lg ml-2">({quiz.questions.length})</span></h2>
           </div>
 
-          {/* Memory game preview from existing questions */}
+          {/* Game mode preview from existing questions */}
           <div className="mb-8 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 md:p-5">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
                 <h3 className="text-sm md:text-base font-bold text-indigo-900">
-                  {lang === "cs" ? "Náhled herního režimu: Pexeso (otázka ↔ správná odpověď)" : "Game mode preview: Memory (question ↔ correct answer)"}
+                  {lang === "cs" ? "Zobrazit návrh v herním režimu" : "Show game mode proposal"}
                 </h3>
-                <p className="text-xs text-indigo-700 mt-1">
-                  {lang === "cs"
-                    ? `Použitelné páry: ${memoryPairsPreview.length}. Přeskočeno (není single choice): ${skippedForMemory}.`
-                    : `Usable pairs: ${memoryPairsPreview.length}. Skipped (not single choice): ${skippedForMemory}.`}
-                </p>
-                {hasTrimmed && (
-                  <p className="text-xs text-amber-700 mt-1">
-                    {lang === "cs"
-                      ? "Některé karty jsou zkrácené. Najetím myší uvidíš plný text (title)."
-                      : "Some cards are trimmed. Hover to see full text (title)."}
-                  </p>
-                )}
+                <p className="text-xs text-indigo-700 mt-1">{lang === "cs" ? "Vyber hru a podívej se, jak by obsah vypadal ve výukovém game režimu." : "Pick a game and preview how your content would look in game mode."}</p>
               </div>
               <button
                 onClick={() => setShowMemoryPreview((v) => !v)}
@@ -379,28 +371,75 @@ export default function QuizEditor() {
 
             {showMemoryPreview && (
               <div className="mt-4">
-                {memoryPairsPreview.length === 0 ? (
-                  <div className="text-sm text-indigo-800 bg-white border border-indigo-200 rounded-xl p-3">
-                    {lang === "cs"
-                      ? "Pro pexeso zatím nemáš použitelné single-choice otázky se správnou odpovědí."
-                      : "No usable single-choice questions with correct answers for memory yet."}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {memoryPairsPreview.map((pair, idx) => (
-                      <div key={pair.questionId} className="grid grid-cols-2 gap-2 bg-white border border-indigo-100 rounded-xl p-3">
-                        <div className="rounded-lg border border-violet-200 bg-violet-50 p-3" title={pair.questionText}>
-                          <p className="text-[10px] uppercase tracking-wide font-bold text-violet-700 mb-1">Q{idx + 1}</p>
-                          <p className="text-xs text-violet-900 leading-snug">{pair.questionDisplay}</p>
-                          {pair.questionTrimmed && <p className="text-[10px] text-amber-700 mt-1">Truncated</p>}
-                        </div>
-                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3" title={pair.answerText}>
-                          <p className="text-[10px] uppercase tracking-wide font-bold text-emerald-700 mb-1">A{idx + 1}</p>
-                          <p className="text-xs text-emerald-900 leading-snug">{pair.answerDisplay}</p>
-                          {pair.answerTrimmed && <p className="text-[10px] text-amber-700 mt-1">Truncated</p>}
-                        </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
+                  {[
+                    { id: "memory_pairs", label: "🧠 Pexeso", status: "implemented" },
+                    { id: "beat_tap", label: "🎵 Beat Tap", status: "planned" },
+                    { id: "color_switch", label: "🎨 Color Switch", status: "planned" },
+                    { id: "risk_button", label: "🎲 Risk Button", status: "planned" },
+                  ].map((game) => (
+                    <button
+                      key={game.id}
+                      onClick={() => setSelectedGamePreview(game.id as GamePreviewType)}
+                      className={`text-left border rounded-xl px-3 py-2 transition-colors ${selectedGamePreview === game.id ? "border-indigo-400 bg-white" : "border-indigo-200 bg-indigo-50 hover:bg-indigo-100"}`}
+                    >
+                      <p className="text-sm font-semibold text-indigo-900">{game.label}</p>
+                      <p className={`text-[11px] font-semibold ${game.status === "implemented" ? "text-green-600" : "text-amber-600"}`}>
+                        {game.status === "implemented" ? (lang === "cs" ? "Implementováno" : "Implemented") : (lang === "cs" ? "Návrh (připraveno)" : "Planned (ready)")}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+
+                {selectedGamePreview === "memory_pairs" ? (
+                  memoryPairsPreview.length === 0 ? (
+                    <div className="text-sm text-indigo-800 bg-white border border-indigo-200 rounded-xl p-3">
+                      {lang === "cs"
+                        ? "Pro pexeso zatím nemáš použitelné single-choice otázky se správnou odpovědí."
+                        : "No usable single-choice questions with correct answers for memory yet."}
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-xs text-indigo-700 mb-2">
+                        {lang === "cs"
+                          ? `Použitelné páry: ${memoryPairsPreview.length}. Přeskočeno (není single choice): ${skippedForMemory}.`
+                          : `Usable pairs: ${memoryPairsPreview.length}. Skipped (not single choice): ${skippedForMemory}.`}
+                      </p>
+                      {hasTrimmed && (
+                        <p className="text-xs text-amber-700 mb-2">
+                          {lang === "cs"
+                            ? "Některé karty jsou zkrácené. Najetím myší uvidíš plný text (title)."
+                            : "Some cards are trimmed. Hover to see full text (title)."}
+                        </p>
+                      )}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {memoryPairsPreview.map((pair, idx) => (
+                          <div key={pair.questionId} className="grid grid-cols-2 gap-2 bg-white border border-indigo-100 rounded-xl p-3">
+                            <div className="rounded-lg border border-violet-200 bg-violet-50 p-3" title={pair.questionText}>
+                              <p className="text-[10px] uppercase tracking-wide font-bold text-violet-700 mb-1">Q{idx + 1}</p>
+                              <p className="text-xs text-violet-900 leading-snug">{pair.questionDisplay}</p>
+                              {pair.questionTrimmed && <p className="text-[10px] text-amber-700 mt-1">Truncated</p>}
+                            </div>
+                            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3" title={pair.answerText}>
+                              <p className="text-[10px] uppercase tracking-wide font-bold text-emerald-700 mb-1">A{idx + 1}</p>
+                              <p className="text-xs text-emerald-900 leading-snug">{pair.answerDisplay}</p>
+                              {pair.answerTrimmed && <p className="text-[10px] text-amber-700 mt-1">Truncated</p>}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    </>
+                  )
+                ) : (
+                  <div className="bg-white border border-indigo-200 rounded-xl p-4">
+                    <p className="text-sm font-semibold text-indigo-900 mb-1">
+                      {selectedGamePreview === "beat_tap" ? "🎵 Beat Tap" : selectedGamePreview === "color_switch" ? "🎨 Color Switch" : "🎲 Risk Button"}
+                    </p>
+                    <p className="text-xs text-indigo-700">
+                      {lang === "cs"
+                        ? "Tato hra je zatím v návrhu. UI a datový model jsou připravené pro budoucí implementaci."
+                        : "This game is currently planned. UI and data model hooks are prepared for future implementation."}
+                    </p>
                   </div>
                 )}
               </div>

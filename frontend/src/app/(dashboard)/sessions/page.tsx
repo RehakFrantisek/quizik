@@ -458,48 +458,6 @@ export default function SessionsPage() {
               )}
             </div>
 
-            {form.play_mode === "memory_pairs" && (
-              <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 text-xs text-indigo-700 space-y-3">
-                <p className="font-semibold text-sm">Pexeso – konfigurace pro toto spuštění</p>
-                <div className="bg-white border border-indigo-200 rounded-lg p-3 space-y-2">
-                  <p className="text-xs font-semibold text-indigo-800">
-                    Vyber a uprav páry ({memoryPairs.filter((p) => p.enabled).length}/{memoryPairs.length})
-                  </p>
-                  {memoryPairs.length === 0 ? (
-                    <p className="text-xs text-gray-500">Vybraný quiz nemá single-choice otázky se správnou odpovědí.</p>
-                  ) : (
-                    <div className="max-h-52 overflow-auto space-y-2 pr-1">
-                      {memoryPairs.map((pair, idx) => (
-                        <div key={pair.source_question_id} className="border border-gray-200 rounded-lg p-2">
-                          <label className="flex items-center gap-2 text-xs font-semibold mb-2">
-                            <input
-                              type="checkbox"
-                              checked={pair.enabled}
-                              onChange={(e) => setMemoryPairs((prev) => prev.map((p) => p.source_question_id === pair.source_question_id ? { ...p, enabled: e.target.checked } : p))}
-                            />
-                            Pair {idx + 1}
-                          </label>
-                          <input
-                            type="text"
-                            value={pair.front}
-                            onChange={(e) => setMemoryPairs((prev) => prev.map((p) => p.source_question_id === pair.source_question_id ? { ...p, front: e.target.value } : p))}
-                            className="w-full border border-gray-300 rounded px-2 py-1 text-xs mb-1"
-                            placeholder="Front (question text)"
-                          />
-                          <input
-                            type="text"
-                            value={pair.back}
-                            onChange={(e) => setMemoryPairs((prev) => prev.map((p) => p.source_question_id === pair.source_question_id ? { ...p, back: e.target.value } : p))}
-                            className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
-                            placeholder="Back (correct answer)"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
             {form.play_mode === "quiz" && form.gamification_enabled && (
               <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 text-xs text-indigo-700 space-y-3">
                 <p className="font-semibold text-sm">{t("sessions.minigameSettings")}</p>
@@ -580,6 +538,50 @@ export default function SessionsPage() {
                   />
                 </div>
                 <p>{t("sessions.minigameScoreNote")}</p>
+              </div>
+            )}
+
+            {form.play_mode === "memory_pairs" && (
+              <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 text-xs text-indigo-700 space-y-3">
+                <p className="font-semibold text-sm">Pexeso – konfigurace pro toto spuštění</p>
+                <p className="text-[11px] text-indigo-600">Editor párů je schválně dole formuláře, aby šel plynule vybrat quiz a hned upravovat páry.</p>
+                <div className="bg-white border border-indigo-200 rounded-lg p-3 space-y-2">
+                  <p className="text-xs font-semibold text-indigo-800">
+                    Vyber a uprav páry ({memoryPairs.filter((p) => p.enabled).length}/{memoryPairs.length})
+                  </p>
+                  {memoryPairs.length === 0 ? (
+                    <p className="text-xs text-gray-500">Vybraný quiz nemá single-choice otázky se správnou odpovědí.</p>
+                  ) : (
+                    <div className="max-h-60 overflow-auto space-y-2 pr-1">
+                      {memoryPairs.map((pair, idx) => (
+                        <div key={pair.source_question_id} className="border border-gray-200 rounded-lg p-2">
+                          <label className="flex items-center gap-2 text-xs font-semibold mb-2">
+                            <input
+                              type="checkbox"
+                              checked={pair.enabled}
+                              onChange={(e) => setMemoryPairs((prev) => prev.map((p) => p.source_question_id === pair.source_question_id ? { ...p, enabled: e.target.checked } : p))}
+                            />
+                            Pair {idx + 1}
+                          </label>
+                          <input
+                            type="text"
+                            value={pair.front}
+                            onChange={(e) => setMemoryPairs((prev) => prev.map((p) => p.source_question_id === pair.source_question_id ? { ...p, front: e.target.value } : p))}
+                            className="w-full border border-gray-300 rounded px-2 py-1 text-xs mb-1"
+                            placeholder="Front (question text)"
+                          />
+                          <input
+                            type="text"
+                            value={pair.back}
+                            onChange={(e) => setMemoryPairs((prev) => prev.map((p) => p.source_question_id === pair.source_question_id ? { ...p, back: e.target.value } : p))}
+                            className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                            placeholder="Back (correct answer)"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
