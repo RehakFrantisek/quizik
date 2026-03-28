@@ -111,6 +111,7 @@ function MemoryPairs({
   pairs,
   theme,
   customImageUrl,
+  settings,
 }: {
   onComplete: (score: number, meta?: { elapsedSec?: number }) => void;
   pairs: MemoryPair[];
