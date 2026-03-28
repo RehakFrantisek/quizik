@@ -96,6 +96,21 @@ async def _fetch_invitation_code(
     return invitation
 
 
+def _is_dev_invitation_bypass(code: str | None) -> bool:
+    if not code:
+        return False
+    return settings.environment != "production" and code == settings.dev_invitation_bypass_code
+
+
+async def _should_bootstrap_admin(db: AsyncSession) -> bool:
+    """Return True when first-user admin bootstrap should be applied."""
+    if not settings.bootstrap_first_admin_enabled:
+        return False
+    stmt = select(User.id).where(User.role == "admin").limit(1)
+    existing_admin = (await db.execute(stmt)).scalar_one_or_none()
+    return existing_admin is None
+
+
 async def validate_invitation_code(
     db: AsyncSession,
     code: str,
@@ -131,31 +146,38 @@ async def register_user(
     The code is validated before the user row is written, and consumed atomically
     in the same commit so no orphaned user can exist with an unconsumed code.
     """
-    if not invitation_code:
+    bypass_invitation = _is_dev_invitation_bypass(invitation_code)
+
+    if not invitation_code and not bypass_invitation:
         raise HTTPException(status_code=400, detail="An invitation code is required to register")
 
-    # Pre-validate the code before touching the users table; raises 400 if bad.
-    invitation = await _fetch_invitation_code(db, invitation_code, email)
+    invitation = None
+    if not bypass_invitation:
+        # Pre-validate the code before touching the users table; raises 400 if bad.
+        invitation = await _fetch_invitation_code(db, invitation_code, email)
 
     stmt = select(User).where(User.email == email.lower())
     existing = (await db.execute(stmt)).scalar_one_or_none()
     if existing:
         raise ConflictException("Email already registered")
 
+    effective_role = "admin" if await _should_bootstrap_admin(db) else role
+
     user = User(
         id=uuid.uuid4(),
         email=email.lower(),
         display_name=display_name or email.split("@")[0],
         password_hash=hash_password(password),
-        role=role,
+        role=effective_role,
     )
     db.add(user)
     # Flush user INSERT first so the FK on invitation_codes.used_by_id resolves.
     await db.flush()
 
     # Consume the invitation code in the same transaction as the user creation.
-    invitation.used_by_id = user.id
-    invitation.used_at = datetime.utcnow()
+    if invitation:
+        invitation.used_by_id = user.id
+        invitation.used_at = datetime.utcnow()
 
     await db.commit()
     await db.refresh(user)
@@ -205,13 +227,14 @@ async def get_or_create_google_user(
         return user
 
     # Create new user (no password)
+    role = "admin" if await _should_bootstrap_admin(db) else "teacher"
     user = User(
         email=email.lower(),
         display_name=display_name or email.split("@")[0],
         password_hash=None,
         google_id=google_id,
         avatar_url=avatar_url,
-        role="teacher",
+        role=role,
     )
     db.add(user)
     await db.commit()

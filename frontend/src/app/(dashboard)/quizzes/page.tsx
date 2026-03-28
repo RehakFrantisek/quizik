@@ -18,6 +18,8 @@ import {
   FileText,
   Search,
   BookOpen,
+  Download,
+  GitMerge,
 } from "lucide-react";
 import { useLang } from "@/contexts/LangContext";
 import { questionCountLabel } from "@/lib/i18n";
@@ -29,7 +31,7 @@ interface Quiz {
   share_slug?: string | null;
   clone_of_id?: string | null;
   is_imported?: boolean;
-  questions?: unknown[];
+  questions?: Array<{ body?: string }>;
 }
 
 export default function QuizzesDashboard() {
@@ -55,6 +57,26 @@ export default function QuizzesDashboard() {
   const [importSlug, setImportSlug] = useState("");
   const [importLoading, setImportLoading] = useState(false);
   const [importError, setImportError] = useState("");
+  const [mergeTargetId, setMergeTargetId] = useState<string | null>(null);
+  const [mergeSourceIds, setMergeSourceIds] = useState<string[]>([]);
+  const [mergeStrategy, setMergeStrategy] = useState<"append" | "interleave">("append");
+  const [mergeDeduplicate, setMergeDeduplicate] = useState(true);
+  const [mergeLoading, setMergeLoading] = useState(false);
+
+  const mergePreview = (() => {
+    if (!mergeTargetId) return null;
+    const target = quizzes.find((q) => q.id === mergeTargetId);
+    if (!target) return null;
+    const sources = quizzes.filter((q) => mergeSourceIds.includes(q.id));
+    const targetBodies = new Set((target.questions ?? []).map((qq) => (qq.body ?? "").trim().toLowerCase()).filter(Boolean));
+    const sourceQuestions = sources.flatMap((s) => s.questions ?? []);
+    const sourceBodies = sourceQuestions.map((qq) => (qq.body ?? "").trim().toLowerCase()).filter(Boolean);
+    const uniqueSourceCount = mergeDeduplicate
+      ? sourceBodies.filter((b, i) => !targetBodies.has(b) && sourceBodies.indexOf(b) === i).length
+      : sourceQuestions.length;
+    const targetCount = target.questions?.length ?? 0;
+    return { targetCount, sourceCount: sourceQuestions.length, uniqueSourceCount, finalCount: targetCount + uniqueSourceCount };
+  })();
 
   useEffect(() => {
     if (!isLoading && !user) router.replace("/login");
@@ -147,6 +169,53 @@ export default function QuizzesDashboard() {
       setImportError(err instanceof Error ? err.message : "Quiz not found. Check the link or slug.");
     } finally {
       setImportLoading(false);
+    }
+  };
+
+  const downloadExport = async (quizId: string, format: "json" | "csv") => {
+    const token = localStorage.getItem("quizik_token");
+    const res = await fetch(`/api/v1/quizzes/${quizId}/export/${format}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) {
+      alert("Export failed");
+      return;
+    }
+    if (format === "json") {
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `quiz-${quizId}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } else {
+      const text = await res.text();
+      const blob = new Blob([text], { type: "text/csv" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `quiz-${quizId}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+  };
+
+  const runMerge = async () => {
+    if (!mergeTargetId || mergeSourceIds.length === 0) return;
+    setMergeLoading(true);
+    try {
+      await apiClient.post(`/quizzes/${mergeTargetId}/merge`, {
+        source_quiz_ids: mergeSourceIds,
+        strategy: mergeStrategy,
+        deduplicate: mergeDeduplicate,
+      });
+      setMergeTargetId(null);
+      setMergeSourceIds([]);
+      await loadQuizzes();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Merge failed");
+    } finally {
+      setMergeLoading(false);
     }
   };
 
@@ -288,6 +357,51 @@ export default function QuizzesDashboard() {
         </div>
       )}
 
+      {mergeTargetId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-lg w-full mx-4">
+            <h2 className="text-lg font-bold text-gray-800 mb-1">Sloučit do tohoto kvízu</h2>
+            <p className="text-sm text-gray-500 mb-3">Vyber zdrojové kvízy, strategii a deduplikaci.</p>
+            <div className="space-y-2 max-h-56 overflow-auto border rounded-lg p-3">
+              {quizzes.filter((q) => q.id !== mergeTargetId).map((q) => (
+                <label key={q.id} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={mergeSourceIds.includes(q.id)}
+                    onChange={(e) => setMergeSourceIds((prev) => e.target.checked ? [...prev, q.id] : prev.filter((id) => id !== q.id))}
+                  />
+                  {q.title}
+                </label>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <select value={mergeStrategy} onChange={(e) => setMergeStrategy(e.target.value as "append" | "interleave")} className="border rounded-lg px-3 py-2 text-sm">
+                <option value="append">Přidat na konec</option>
+                <option value="interleave">Proložit s existujícími</option>
+              </select>
+              <label className="text-sm flex items-center gap-2">
+                <input type="checkbox" checked={mergeDeduplicate} onChange={(e) => setMergeDeduplicate(e.target.checked)} />
+                Deduplikace
+              </label>
+            </div>
+            {mergePreview && (
+              <div className="mt-3 text-xs rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-indigo-800 space-y-1">
+                <p>Aktuálně v cíli: <b>{mergePreview.targetCount}</b> otázek</p>
+                <p>Vybráno ze zdrojů: <b>{mergePreview.sourceCount}</b> otázek</p>
+                <p>Po deduplikaci přibude: <b>{mergePreview.uniqueSourceCount}</b> otázek</p>
+                <p>Výsledný odhad: <b>{mergePreview.finalCount}</b> otázek</p>
+              </div>
+            )}
+            <div className="flex gap-2 mt-4">
+              <button onClick={runMerge} disabled={mergeLoading || mergeSourceIds.length === 0} className="bg-indigo-600 text-white px-4 py-2 rounded-lg disabled:opacity-50">
+                {mergeLoading ? "Slučuji..." : "Sloučit"}
+              </button>
+              <button onClick={() => setMergeTargetId(null)} className="border px-4 py-2 rounded-lg">Zrušit</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
@@ -399,6 +513,15 @@ export default function QuizzesDashboard() {
                   <button onClick={() => setDeletingId(quiz.id)}
                     className="flex items-center gap-1.5 text-red-400 hover:text-white hover:bg-red-500 bg-red-50 border border-red-200 text-sm px-3 py-1.5 rounded-xl transition-all">
                     <Trash2 size={14} />
+                  </button>
+                  <button onClick={() => setMergeTargetId(quiz.id)} className="flex items-center gap-1 text-sm px-2.5 py-1.5 rounded-xl border bg-blue-50 text-blue-700 border-blue-200">
+                    <GitMerge size={14} /> <span className="hidden sm:inline">Merge</span>
+                  </button>
+                  <button onClick={() => downloadExport(quiz.id, "json")} className="flex items-center gap-1 text-sm px-2.5 py-1.5 rounded-xl border bg-gray-50 text-gray-700 border-gray-200">
+                    <Download size={14} /> <span className="hidden sm:inline">JSON</span>
+                  </button>
+                  <button onClick={() => downloadExport(quiz.id, "csv")} className="flex items-center gap-1 text-sm px-2.5 py-1.5 rounded-xl border bg-gray-50 text-gray-700 border-gray-200">
+                    <Download size={14} /> <span className="hidden sm:inline">CSV</span>
                   </button>
                 </div>
               </div>
