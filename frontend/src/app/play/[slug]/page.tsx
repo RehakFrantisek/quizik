@@ -55,6 +55,21 @@ interface AnswerResult {
   correct_texts: string[];
 }
 
+function answerToText(
+  question: Question | undefined,
+  answer: string | string[] | undefined,
+  fallback: string,
+): string {
+  if (answer == null) return fallback;
+  if (!question) return Array.isArray(answer) ? answer.join(", ") : answer;
+  const map = new Map(question.options.map((opt) => [opt.id, opt.text]));
+  if (Array.isArray(answer)) {
+    if (answer.length === 0) return fallback;
+    return answer.map((id) => map.get(id) ?? id).join(", ");
+  }
+  return map.get(answer) ?? answer;
+}
+
 type Phase = "name" | "quiz" | "minigame" | "result" | "error" | "already_attempted";
 
 interface Result {
@@ -446,7 +461,7 @@ export default function PlayPage() {
               {allAnswerResults.map((ar, i) => {
                 const qs = sessionData.questions.find(qq => qq.id === ar.question_id);
                 const userAns = answers[ar.question_id];
-                const userAnsText = Array.isArray(userAns) ? userAns.join(", ") : (userAns ?? t("play.noAnswer"));
+                const userAnsText = answerToText(qs, userAns, t("play.noAnswer"));
                 const canCorrect = bonusEndCorrection && !endCorrectionUsed && !ar.is_correct;
                 return (
                   <div key={ar.question_id} className={`p-3 rounded-xl text-sm ${ar.is_correct ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}>

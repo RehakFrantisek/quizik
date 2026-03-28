@@ -58,6 +58,17 @@ interface Question {
   options: QuestionOption[];
 }
 
+function getFastAnswerTimeSec(payload: Record<string, unknown> | null): number | null {
+  if (!payload) return null;
+  const raw = payload["time_sec"];
+  if (typeof raw === "number") return raw;
+  if (typeof raw === "string") {
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
 export default function AttemptReviewPage() {
   const { id: sessionId, attemptId } = useParams<{ id: string; attemptId: string }>();
   const router = useRouter();
@@ -277,19 +288,22 @@ export default function AttemptReviewPage() {
             </p>
             {showTelemetry && (
               <ul className="mt-3 space-y-1 text-xs text-gray-600 max-h-52 overflow-y-auto">
-                {attempt.telemetry_events.map((ev) => (
-                  <li key={ev.id} className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded-full font-semibold shrink-0 ${telemetryColor(ev.event_type)}`}>
-                      {telemetryLabel(ev.event_type)}
-                    </span>
-                    {ev.client_ts && (
-                      <span className="text-gray-400 tabular-nums">{new Date(ev.client_ts).toLocaleTimeString()}</span>
-                    )}
-                    {ev.event_type === "fast_answer" && ev.payload?.time_sec != null && (
-                      <span className="text-yellow-600">({ev.payload.time_sec}s)</span>
-                    )}
-                  </li>
-                ))}
+                {attempt.telemetry_events.map((ev) => {
+                  const timeSec = getFastAnswerTimeSec(ev.payload);
+                  return (
+                    <li key={ev.id} className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded-full font-semibold shrink-0 ${telemetryColor(ev.event_type)}`}>
+                        {telemetryLabel(ev.event_type)}
+                      </span>
+                      {ev.client_ts && (
+                        <span className="text-gray-400 tabular-nums">{new Date(ev.client_ts).toLocaleTimeString()}</span>
+                      )}
+                      {ev.event_type === "fast_answer" && timeSec != null && (
+                        <span className="text-yellow-600">({timeSec}s)</span>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
