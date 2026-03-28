@@ -8,13 +8,14 @@ import { useLang } from "@/contexts/LangContext";
 import { useTheme } from "@/contexts/ThemeContext";
 
 interface LeaderboardEntry {
-  rank: number;
+  rank: number | null;
+  status: "completed" | "in_progress" | string;
   participant_name: string;
-  score: number;
-  max_score: number;
-  percentage: number;
+  score: number | null;
+  max_score: number | null;
+  percentage: number | null;
   time_spent_sec: number | null;
-  completed_at: string;
+  completed_at: string | null;
 }
 
 export default function LeaderboardPage() {
@@ -62,7 +63,9 @@ export default function LeaderboardPage() {
     return m > 0 ? `${m}m ${s}s` : `${s}s`;
   };
 
-  const rankIcon = (rank: number) => {
+  const rankIcon = (rank: number | null, status: string) => {
+    if (status !== "completed") return <span className="text-[11px] font-bold text-blue-500">…</span>;
+    if (rank == null) return <span className="text-sm font-bold text-gray-400 dark:text-gray-500 w-[18px] text-center">—</span>;
     if (rank === 1) return <Trophy size={18} className="text-yellow-500" />;
     if (rank === 2) return <Medal size={18} className="text-gray-400" />;
     if (rank === 3) return <Medal size={18} className="text-amber-600" />;
@@ -112,39 +115,49 @@ export default function LeaderboardPage() {
         {entries.length > 0 && (
           <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl shadow overflow-hidden">
             {/* Top 3 podium */}
-            {entries.length >= 2 && (
+            {entries.filter((e) => e.status === "completed").length >= 2 && (
               <div className="bg-gradient-to-b from-blue-50 dark:from-blue-950 to-white dark:to-gray-800 px-6 pt-6 pb-2 flex items-end justify-center gap-4">
+                {(() => {
+                  const completed = entries.filter((e) => e.status === "completed");
+                  const first = completed[0];
+                  const second = completed[1];
+                  const third = completed[2];
+                  return (
+                    <>
                 {/* 2nd */}
-                {entries[1] && (
+                {second && (
                   <div className="flex flex-col items-center pb-2">
                     <Medal size={24} className="text-gray-400 mb-1" />
                     <div className="bg-gray-100 dark:bg-gray-700 border dark:border-gray-600 rounded-lg px-3 py-2 text-center w-28">
-                      <p className="font-bold text-gray-700 dark:text-gray-200 text-sm truncate">{entries[1].participant_name}</p>
-                      <p className="text-lg font-black text-gray-800 dark:text-gray-100">{entries[1].percentage}%</p>
+                      <p className="font-bold text-gray-700 dark:text-gray-200 text-sm truncate">{second.participant_name}</p>
+                      <p className="text-lg font-black text-gray-800 dark:text-gray-100">{second.percentage ?? 0}%</p>
                     </div>
                     <div className="h-12 w-28 bg-gray-200 dark:bg-gray-700 rounded-b-lg" />
                   </div>
                 )}
                 {/* 1st */}
-                <div className="flex flex-col items-center">
+                {first && <div className="flex flex-col items-center">
                   <Trophy size={28} className="text-yellow-500 mb-1" />
                   <div className="bg-yellow-50 dark:bg-yellow-900/40 border border-yellow-200 dark:border-yellow-700 rounded-lg px-3 py-2 text-center w-32">
-                    <p className="font-bold text-gray-700 dark:text-gray-200 text-sm truncate">{entries[0].participant_name}</p>
-                    <p className="text-2xl font-black text-gray-800 dark:text-gray-100">{entries[0].percentage}%</p>
+                    <p className="font-bold text-gray-700 dark:text-gray-200 text-sm truncate">{first.participant_name}</p>
+                    <p className="text-2xl font-black text-gray-800 dark:text-gray-100">{first.percentage ?? 0}%</p>
                   </div>
                   <div className="h-16 w-32 bg-yellow-100 dark:bg-yellow-900/30 rounded-b-lg" />
-                </div>
+                </div>}
                 {/* 3rd */}
-                {entries[2] && (
+                {third && (
                   <div className="flex flex-col items-center pb-4">
                     <Medal size={22} className="text-amber-600 mb-1" />
                     <div className="bg-amber-50 dark:bg-amber-900/30 border dark:border-amber-700/50 rounded-lg px-3 py-2 text-center w-28">
-                      <p className="font-bold text-gray-700 dark:text-gray-200 text-sm truncate">{entries[2].participant_name}</p>
-                      <p className="text-lg font-black text-gray-800 dark:text-gray-100">{entries[2].percentage}%</p>
+                      <p className="font-bold text-gray-700 dark:text-gray-200 text-sm truncate">{third.participant_name}</p>
+                      <p className="text-lg font-black text-gray-800 dark:text-gray-100">{third.percentage ?? 0}%</p>
                     </div>
                     <div className="h-8 w-28 bg-amber-100 dark:bg-amber-900/20 rounded-b-lg" />
                   </div>
                 )}
+                    </>
+                  );
+                })()}
               </div>
             )}
 
@@ -154,6 +167,7 @@ export default function LeaderboardPage() {
                 <tr className="border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">
                   <th className="px-4 py-3 text-left w-12">#</th>
                   <th className="px-4 py-3 text-left">{t("leaderboard.colName")}</th>
+                  <th className="px-4 py-3 text-center">Status</th>
                   <th className="px-4 py-3 text-right">{t("leaderboard.colScore")}</th>
                   <th className="px-4 py-3 text-right">{t("leaderboard.colPercent")}</th>
                   <th className="px-4 py-3 text-right">{t("leaderboard.colTime")}</th>
@@ -162,27 +176,34 @@ export default function LeaderboardPage() {
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {entries.map((e) => (
                   <tr
-                    key={e.rank}
-                    className={`transition-colors ${e.rank <= 3 ? "bg-white dark:bg-gray-800 font-semibold" : "hover:bg-gray-50 dark:hover:bg-gray-700/50"}`}
+                    key={`${e.participant_name}-${e.rank ?? "pending"}-${e.completed_at ?? "active"}`}
+                    className={`transition-colors ${e.rank != null && e.rank <= 3 ? "bg-white dark:bg-gray-800 font-semibold" : "hover:bg-gray-50 dark:hover:bg-gray-700/50"} ${e.status !== "completed" ? "bg-blue-50/40 dark:bg-blue-900/10" : ""}`}
                   >
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-center">{rankIcon(e.rank)}</div>
+                      <div className="flex items-center justify-center">{rankIcon(e.rank, e.status)}</div>
                     </td>
                     <td className="px-4 py-3 text-gray-800 dark:text-gray-200">{e.participant_name}</td>
+                    <td className="px-4 py-3 text-center">
+                      {e.status === "completed" ? (
+                        <span className="text-[11px] font-bold uppercase tracking-wide px-2 py-1 rounded-full bg-green-100 text-green-700">Done</span>
+                      ) : (
+                        <span className="text-[11px] font-bold uppercase tracking-wide px-2 py-1 rounded-full bg-blue-100 text-blue-700">In progress</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">
-                      {e.score} / {e.max_score}
+                      {e.score ?? "—"} / {e.max_score ?? "—"}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <span
                         className={`font-bold ${
-                          e.percentage >= 80
+                          (e.percentage ?? 0) >= 80
                             ? "text-green-600"
-                            : e.percentage >= 50
+                            : (e.percentage ?? 0) >= 50
                             ? "text-yellow-600"
                             : "text-red-500"
                         }`}
                       >
-                        {e.percentage}%
+                        {e.percentage ?? "—"}{e.percentage != null ? "%" : ""}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{formatTime(e.time_spent_sec)}</td>
