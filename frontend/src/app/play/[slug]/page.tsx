@@ -30,10 +30,12 @@ interface SessionData {
   title: string;
   description: string | null;
   leaderboard_enabled: boolean;
+  play_mode?: "quiz" | "memory_pairs" | string;
   allow_repeat: boolean;
   show_correct_answer: boolean;
   gamification_enabled?: boolean;
   minigame_type?: string;
+  minigame_config?: Record<string, unknown> | null;
   minigame_trigger_mode?: string;
   minigame_trigger_n?: number;
   time_limit_sec: number | null;
@@ -55,13 +57,29 @@ interface AnswerResult {
   correct_texts: string[];
 }
 
-type Phase = "name" | "quiz" | "minigame" | "result" | "error" | "already_attempted";
+function answerToText(
+  question: Question | undefined,
+  answer: string | string[] | undefined,
+  fallback: string,
+): string {
+  if (answer == null) return fallback;
+  if (!question) return Array.isArray(answer) ? answer.join(", ") : answer;
+  const map = new Map(question.options.map((opt) => [opt.id, opt.text]));
+  if (Array.isArray(answer)) {
+    if (answer.length === 0) return fallback;
+    return answer.map((id) => map.get(id) ?? id).join(", ");
+  }
+  return map.get(answer) ?? answer;
+}
+
+type Phase = "name" | "quiz" | "minigame" | "memory_mode" | "result" | "error" | "already_attempted";
 
 interface Result {
   score: number;
   max_score: number;
   percentage: number;
   minigame_score: number;
+  time_spent_sec?: number | null;
   leaderboard_enabled: boolean;
 }
 
@@ -76,18 +94,30 @@ function getDeviceToken(): string {
   return token;
 }
 
+function pickEnabledMinigame(sessionData: SessionData | null): "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "risk_reward" {
+  const fallback = (sessionData?.minigame_type as "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "risk_reward" | undefined) ?? "tap_sprint";
+  const raw = sessionData?.minigame_config && typeof sessionData.minigame_config === "object"
+    ? (sessionData.minigame_config as { enabled_minigames?: unknown }).enabled_minigames
+    : null;
+  if (!Array.isArray(raw) || raw.length === 0) return fallback;
+  const allowed = raw.filter((x): x is "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "risk_reward" =>
+    typeof x === "string" && ["tap_sprint", "typing_race", "slider", "memory_pairs", "risk_reward"].includes(x));
+  if (allowed.length === 0) return fallback;
+  return allowed[Math.floor(Math.random() * allowed.length)];
+}
+
 function PlayControls() {
   const { theme, toggleTheme } = useTheme();
   const { lang, toggleLang } = useLang();
   return (
     <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
       <button onClick={toggleLang}
-        className="text-xs font-bold bg-white border border-gray-200 text-gray-500 px-2.5 py-1.5 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
+        className="text-xs font-bold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-300 px-2.5 py-1.5 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
         title={lang === "en" ? "Switch to Czech" : "Přepnout na angličtinu"}>
         {lang === "en" ? "CZ" : "EN"}
       </button>
       <button onClick={toggleTheme}
-        className="bg-white border border-gray-200 text-gray-500 p-1.5 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
+        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-300 p-1.5 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
         title={theme === "dark" ? "Light mode" : "Dark mode"}>
         {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
       </button>
@@ -194,9 +224,38 @@ export default function PlayPage() {
       if ((sessionData?.bonus_unlock_mode ?? "immediate") === "random") {
         setBonusVisibleRandom(Math.random() < 0.4);
       }
-      setPhase("quiz");
+      setPhase(sessionData?.play_mode === "memory_pairs" || sessionData?.play_mode === "speed_match" ? "memory_mode" : "quiz");
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to start");
+    }
+  };
+
+  const submitMemoryMode = async (score: number, elapsedSec: number) => {
+    if (!sessionData || !attemptIdRef.current) return;
+    try {
+      const res = await fetch(`/api/v1/play/${slug}/attempts/${attemptIdRef.current}/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          answers: [{ question_id: sessionData.questions[0]?.id ?? null, response: null, time_spent_sec: Math.max(1, elapsedSec) }],
+          minigame_score: score,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to submit memory mode");
+      const data = await res.json();
+      setAllAnswerResults(Array.isArray(data.answer_results) ? data.answer_results : []);
+      setResult({
+        score: data.score,
+        max_score: data.max_score,
+        percentage: data.percentage,
+        minigame_score: data.minigame_score ?? score,
+        time_spent_sec: data.time_spent_sec ?? elapsedSec,
+        leaderboard_enabled: sessionData.leaderboard_enabled,
+      });
+      setPhase("result");
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Failed to submit memory mode");
+      setPhase("error");
     }
   };
 
@@ -271,7 +330,7 @@ export default function PlayPage() {
       if (!res.ok) throw new Error("Submission failed");
       const data = await res.json();
       setAllAnswerResults(data.answer_results ?? []);
-      setResult({ score: data.score, max_score: data.max_score, percentage: data.percentage, minigame_score: data.minigame_score ?? 0, leaderboard_enabled: sessionData.leaderboard_enabled });
+      setResult({ score: data.score, max_score: data.max_score, percentage: data.percentage, minigame_score: data.minigame_score ?? 0, time_spent_sec: data.time_spent_sec ?? null, leaderboard_enabled: sessionData.leaderboard_enabled });
       await flushTelemetry(attemptId);
       setPhase("result");
     } catch (err) {
@@ -337,9 +396,9 @@ export default function PlayPage() {
   );
 
   if (phase === "error") return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
       <PlayControls />
-      <div className="bg-white border border-red-200 rounded-xl p-8 max-w-md text-center shadow">
+      <div className="bg-white dark:bg-gray-800 border border-red-200 dark:border-red-800 rounded-xl p-8 max-w-md text-center shadow">
         <h2 className="text-xl font-bold text-red-700 mb-2">{t("play.quizUnavailable")}</h2>
         <p className="text-gray-600">{errorMsg}</p>
       </div>
@@ -347,9 +406,9 @@ export default function PlayPage() {
   );
 
   if (phase === "already_attempted") return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
       <PlayControls />
-      <div className="bg-white border border-orange-200 rounded-xl p-8 max-w-md text-center shadow">
+      <div className="bg-white dark:bg-gray-800 border border-orange-200 dark:border-orange-800 rounded-xl p-8 max-w-md text-center shadow">
         <Trophy size={48} className="mx-auto mb-4 text-yellow-500" />
         <h2 className="text-xl font-bold text-gray-800 mb-2">{t("play.alreadyCompleted")}</h2>
         <p className="text-gray-600 mb-4">{t("play.alreadyCompletedText")}</p>
@@ -365,9 +424,9 @@ export default function PlayPage() {
   // ── Name / Avatar screen ──
 
   if (phase === "name") return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 px-4">
       <PlayControls />
-      <div className="bg-white border rounded-2xl p-8 max-w-md w-full shadow-md">
+      <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-8 max-w-md w-full shadow-md">
         <h1 className="text-2xl font-black text-gray-800 mb-1">{sessionData!.title}</h1>
         {sessionData!.description && <p className="text-gray-500 text-sm mb-3">{sessionData!.description}</p>}
         <p className="text-sm text-gray-400 mb-5">
@@ -406,27 +465,37 @@ export default function PlayPage() {
   // ── Result screen ──
 
   if (phase === "result" && result) {
-    const passed = result.percentage >= 70;
+    const isMemoryMode = sessionData?.play_mode === "memory_pairs" || sessionData?.play_mode === "speed_match";
+    const passed = isMemoryMode ? true : result.percentage >= 70;
     const bonusEndCorrection = sessionData?.bonuses_enabled && sessionData?.bonus_end_correction;
     const wrongAnswers = allAnswerResults.filter((ar) => !ar.is_correct);
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50 py-8 px-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 py-8 px-4">
         <PlayControls />
-        <div className="bg-white border rounded-2xl p-8 max-w-lg w-full shadow-md text-center">
+        <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-8 max-w-lg w-full shadow-md text-center">
           <div className="text-5xl mb-3">{avatar}</div>
           <CheckCircle size={48} className={`mx-auto mb-3 ${passed ? "text-green-500" : "text-orange-400"}`} />
           <h2 className="text-2xl font-black mb-1">{t("play.quizComplete")}</h2>
-          <p className="text-4xl font-bold text-gray-800 mb-1">{result.percentage}%</p>
-          <p className="text-gray-500 mb-2">{result.score} / {result.max_score} {t("play.points")}</p>
-          {result.minigame_score > 0 && (
+          {!isMemoryMode && (
+            <>
+              <p className="text-4xl font-bold text-gray-800 mb-1">{result.percentage}%</p>
+              <p className="text-gray-500 mb-2">{result.score} / {result.max_score} {t("play.points")}</p>
+            </>
+          )}
+          {!isMemoryMode && result.minigame_score > 0 && (
             <p className="text-xs text-indigo-600 font-semibold mb-1">
               {t("play.bonusPts", { pts: Math.round(result.minigame_score / 10), score: result.minigame_score })}
             </p>
           )}
-          <p className={`font-semibold mb-4 ${passed ? "text-green-600" : "text-orange-600"}`}>
-            {passed ? t("play.wellDone") : t("play.keepPracticing")}
-          </p>
+          {isMemoryMode && result.time_spent_sec != null && (
+            <p className="text-sm text-indigo-700 font-semibold mb-1">⏱ Čas: {result.time_spent_sec}s</p>
+          )}
+          {!isMemoryMode && (
+            <p className={`font-semibold mb-4 ${passed ? "text-green-600" : "text-orange-600"}`}>
+              {passed ? t("play.wellDone") : t("play.keepPracticing")}
+            </p>
+          )}
 
           {bonusEndCorrection && !endCorrectionUsed && wrongAnswers.length > 0 && (
             <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
@@ -446,7 +515,7 @@ export default function PlayPage() {
               {allAnswerResults.map((ar, i) => {
                 const qs = sessionData.questions.find(qq => qq.id === ar.question_id);
                 const userAns = answers[ar.question_id];
-                const userAnsText = Array.isArray(userAns) ? userAns.join(", ") : (userAns ?? t("play.noAnswer"));
+                const userAnsText = answerToText(qs, userAns, t("play.noAnswer"));
                 const canCorrect = bonusEndCorrection && !endCorrectionUsed && !ar.is_correct;
                 return (
                   <div key={ar.question_id} className={`p-3 rounded-xl text-sm ${ar.is_correct ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}>
@@ -484,11 +553,29 @@ export default function PlayPage() {
 
   // ── Minigame phase ──
 
+  if (phase === "memory_mode") return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-violet-50 to-fuchsia-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex flex-col items-center justify-center py-6 px-4">
+      <PlayControls />
+      <div className="w-full max-w-xl text-center mb-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500 dark:text-indigo-300">{t("play.practiceMode")}</p>
+        <h2 className="text-2xl font-black text-indigo-900 dark:text-indigo-100">🧠 {t("play.memoryChallengeTitle")}</h2>
+        <p className="text-sm text-indigo-700 dark:text-indigo-200">{t("play.memoryChallengeSubtitle")}</p>
+      </div>
+      <Minigame
+        type={sessionData?.play_mode === "speed_match" ? "speed_match" : "memory_pairs"}
+        config={sessionData?.minigame_config ?? null}
+        allowSkip={false}
+        onComplete={(score, meta) => submitMemoryMode(score, meta?.elapsedSec ?? 0)}
+      />
+    </div>
+  );
+
   if (phase === "minigame") return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center py-12 px-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center py-8 px-4">
       <PlayControls />
       <Minigame
-        type={(sessionData?.minigame_type as "tap_sprint" | "typing_race" | "slider" | "random") ?? "tap_sprint"}
+        type={pickEnabledMinigame(sessionData)}
+        config={sessionData?.minigame_config ?? null}
         durationSec={5}
         onComplete={(score) => {
           setMinigameScores((prev) => [...prev, score]);
@@ -534,7 +621,7 @@ export default function PlayPage() {
   })();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50 flex flex-col items-center py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex flex-col items-center py-8 px-4">
       <PlayControls />
       <div className="w-full max-w-xl">
         {/* Header row with avatar */}
@@ -578,7 +665,7 @@ export default function PlayPage() {
           </div>
         )}
 
-        <div className="bg-white border rounded-2xl p-6 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-6 shadow-sm">
           <p className="text-lg font-semibold text-gray-800 mb-4">{q.body}</p>
           {q.image_url && (
             <img src={q.image_url} alt="" className="max-h-56 mx-auto rounded-xl border border-gray-200 object-contain mb-4" />
