@@ -77,6 +77,7 @@ export default function SessionsPage() {
     starts_at: "",
     ends_at: "",
     leaderboard_enabled: true,
+    play_mode: "quiz",
     max_repeats: 0,
     show_correct_answer: true,
     gamification_enabled: false,
@@ -167,6 +168,7 @@ export default function SessionsPage() {
       const body: Record<string, unknown> = {
         quiz_id: form.quiz_id,
         leaderboard_enabled: form.leaderboard_enabled,
+        play_mode: form.play_mode,
         allow_repeat: form.max_repeats === 0,
         max_repeats: form.max_repeats,
         show_correct_answer: form.show_correct_answer,
@@ -187,10 +189,11 @@ export default function SessionsPage() {
       if (form.title) body.title = form.title;
       if (form.starts_at) body.starts_at = new Date(form.starts_at).toISOString();
       if (form.ends_at) body.ends_at = new Date(form.ends_at).toISOString();
-      body.minigame_type = form.minigame_type;
+      body.minigame_type = form.play_mode === "memory_pairs" ? "memory_pairs" : form.minigame_type;
       body.minigame_trigger_mode = form.minigame_trigger_mode;
       body.minigame_trigger_n = form.minigame_trigger_n;
-      if (form.minigame_type === "memory_pairs") {
+      if (form.play_mode === "memory_pairs") {
+        body.gamification_enabled = false;
         const selectedPairs = memoryPairs
           .filter((p) => p.enabled && p.front.trim() && p.back.trim())
           .map((p) => ({
@@ -202,7 +205,7 @@ export default function SessionsPage() {
       }
       await apiClient.post("/sessions", body);
       setShowCreate(false);
-      setForm({ quiz_id: "", title: "", starts_at: "", ends_at: "", leaderboard_enabled: true, max_repeats: 0, show_correct_answer: true, gamification_enabled: false, minigame_type: "tap_sprint", minigame_config: null, minigame_trigger_mode: "every_n", minigame_trigger_n: 3, question_count: 0, shuffle_questions: false, shuffle_options: false, anticheat_enabled: false, anticheat_tab_switch: false, anticheat_fast_answer: false, bonuses_enabled: false, bonus_eliminate: false, bonus_second_chance: false, bonus_end_correction: false, bonus_unlock_mode: "immediate", bonus_unlock_x: 3 });
+      setForm({ quiz_id: "", title: "", starts_at: "", ends_at: "", leaderboard_enabled: true, play_mode: "quiz", max_repeats: 0, show_correct_answer: true, gamification_enabled: false, minigame_type: "tap_sprint", minigame_config: null, minigame_trigger_mode: "every_n", minigame_trigger_n: 3, question_count: 0, shuffle_questions: false, shuffle_options: false, anticheat_enabled: false, anticheat_tab_switch: false, anticheat_fast_answer: false, bonuses_enabled: false, bonus_eliminate: false, bonus_second_chance: false, bonus_end_correction: false, bonus_unlock_mode: "immediate", bonus_unlock_x: 3 });
       setMemoryPairs([]);
       await loadSessions();
     } catch (err) {
@@ -350,6 +353,22 @@ export default function SessionsPage() {
                 <span className="text-sm font-semibold text-gray-700">{t("sessions.minigames")}</span>
               </label>
             </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Režim spuštění</label>
+              <select
+                value={form.play_mode}
+                onChange={(e) => setForm({ ...form, play_mode: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="quiz">📝 Klasický kvíz</option>
+                <option value="memory_pairs">🧠 Procvičování: Pexeso</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                {form.play_mode === "quiz"
+                  ? "Otázky + volitelné minihry mezi otázkami."
+                  : "Běží pouze pexeso. Měří se čas a výsledek jde do leaderboardu."}
+              </p>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
@@ -439,7 +458,49 @@ export default function SessionsPage() {
               )}
             </div>
 
-            {form.gamification_enabled && (
+            {form.play_mode === "memory_pairs" && (
+              <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 text-xs text-indigo-700 space-y-3">
+                <p className="font-semibold text-sm">Pexeso – konfigurace pro toto spuštění</p>
+                <div className="bg-white border border-indigo-200 rounded-lg p-3 space-y-2">
+                  <p className="text-xs font-semibold text-indigo-800">
+                    Vyber a uprav páry ({memoryPairs.filter((p) => p.enabled).length}/{memoryPairs.length})
+                  </p>
+                  {memoryPairs.length === 0 ? (
+                    <p className="text-xs text-gray-500">Vybraný quiz nemá single-choice otázky se správnou odpovědí.</p>
+                  ) : (
+                    <div className="max-h-52 overflow-auto space-y-2 pr-1">
+                      {memoryPairs.map((pair, idx) => (
+                        <div key={pair.source_question_id} className="border border-gray-200 rounded-lg p-2">
+                          <label className="flex items-center gap-2 text-xs font-semibold mb-2">
+                            <input
+                              type="checkbox"
+                              checked={pair.enabled}
+                              onChange={(e) => setMemoryPairs((prev) => prev.map((p) => p.source_question_id === pair.source_question_id ? { ...p, enabled: e.target.checked } : p))}
+                            />
+                            Pair {idx + 1}
+                          </label>
+                          <input
+                            type="text"
+                            value={pair.front}
+                            onChange={(e) => setMemoryPairs((prev) => prev.map((p) => p.source_question_id === pair.source_question_id ? { ...p, front: e.target.value } : p))}
+                            className="w-full border border-gray-300 rounded px-2 py-1 text-xs mb-1"
+                            placeholder="Front (question text)"
+                          />
+                          <input
+                            type="text"
+                            value={pair.back}
+                            onChange={(e) => setMemoryPairs((prev) => prev.map((p) => p.source_question_id === pair.source_question_id ? { ...p, back: e.target.value } : p))}
+                            className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                            placeholder="Back (correct answer)"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            {form.play_mode === "quiz" && form.gamification_enabled && (
               <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 text-xs text-indigo-700 space-y-3">
                 <p className="font-semibold text-sm">{t("sessions.minigameSettings")}</p>
                 <div>

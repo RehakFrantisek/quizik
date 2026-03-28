@@ -47,6 +47,7 @@ class QuizSession(Base):
 
     leaderboard_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     gamification_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    play_mode: Mapped[str] = mapped_column(String(30), default="quiz", server_default="quiz")
     minigame_type: Mapped[str] = mapped_column(String(50), default="tap_sprint", server_default="tap_sprint")
     minigame_config: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     minigame_trigger_mode: Mapped[str] = mapped_column(String(20), default="every_n", server_default="every_n")

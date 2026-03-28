@@ -94,6 +94,7 @@ async def create_session(db: AsyncSession, owner: User, data: SessionCreate) -> 
         starts_at=data.starts_at,
         ends_at=data.ends_at,
         leaderboard_enabled=data.leaderboard_enabled,
+        play_mode=data.play_mode,
         gamification_enabled=data.gamification_enabled,
         minigame_type=data.minigame_type,
         minigame_config=data.minigame_config,

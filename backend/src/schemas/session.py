@@ -15,6 +15,7 @@ class SessionCreate(BaseModel):
     starts_at: datetime | None = None
     ends_at: datetime | None = None
     leaderboard_enabled: bool = True
+    play_mode: str = Field(default="quiz", pattern="^(quiz|memory_pairs)$")
     gamification_enabled: bool = False
     minigame_type: str = Field(default="tap_sprint", pattern="^(tap_sprint|typing_race|slider|random|memory_pairs)$")
     minigame_config: dict | None = None
@@ -43,6 +44,7 @@ class SessionUpdate(BaseModel):
     starts_at: datetime | None = None
     ends_at: datetime | None = None
     leaderboard_enabled: bool | None = None
+    play_mode: str | None = Field(default=None, pattern="^(quiz|memory_pairs)$")
     gamification_enabled: bool | None = None
     minigame_type: str | None = Field(default=None, pattern="^(tap_sprint|typing_race|slider|random|memory_pairs)$")
     minigame_config: dict | None = None
@@ -77,6 +79,7 @@ class SessionOut(BaseModel):
     starts_at: datetime | None
     ends_at: datetime | None
     leaderboard_enabled: bool
+    play_mode: str = "quiz"
     gamification_enabled: bool
     minigame_type: str = "tap_sprint"
     minigame_config: dict | None = None

@@ -6,7 +6,7 @@ import { TypingRace } from "./TypingRace";
 import { SliderGame } from "./SliderGame";
 
 interface Props {
-  onComplete: (score: number) => void;
+  onComplete: (score: number, meta?: { elapsedSec?: number }) => void;
   type?: "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "random";
   durationSec?: number;
   allowSkip?: boolean;
@@ -77,9 +77,10 @@ export function Minigame({ onComplete, type = "tap_sprint", durationSec = 5, all
   );
 }
 
-function MemoryPairs({ onComplete, pairs }: { onComplete: (score: number) => void; pairs: MemoryPair[] }) {
+function MemoryPairs({ onComplete, pairs }: { onComplete: (score: number, meta?: { elapsedSec?: number }) => void; pairs: MemoryPair[] }) {
   const [flipped, setFlipped] = useState<number[]>([]);
   const [matched, setMatched] = useState<Set<number>>(new Set());
+  const startedAt = useRef<number>(Date.now());
 
   const cards = useMemo(() => {
     const selected = pairs.slice(0, 4);
@@ -94,13 +95,15 @@ function MemoryPairs({ onComplete, pairs }: { onComplete: (score: number) => voi
   useEffect(() => {
     setFlipped([]);
     setMatched(new Set());
+    startedAt.current = Date.now();
   }, [cards.length]);
 
   useEffect(() => {
     if (cards.length === 0) return;
     if (matched.size === cards.length) {
       const score = pairs.length > 0 ? 100 : 0;
-      const timer = setTimeout(() => onComplete(score), 600);
+      const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt.current) / 1000));
+      const timer = setTimeout(() => onComplete(score, { elapsedSec }), 600);
       return () => clearTimeout(timer);
     }
   }, [matched, cards.length, onComplete, pairs.length]);
@@ -153,7 +156,7 @@ function MemoryPairs({ onComplete, pairs }: { onComplete: (score: number) => voi
 
 // ── Tap Sprint (original) ──────────────────────────────────────────────────────
 
-function TapSprint({ onComplete, durationSec = 5 }: { onComplete: (score: number) => void; durationSec?: number }) {
+function TapSprint({ onComplete, durationSec = 5 }: { onComplete: (score: number, meta?: { elapsedSec?: number }) => void; durationSec?: number }) {
   const [phase, setPhase] = useState<"ready" | "playing" | "done">("ready");
   const [taps, setTaps] = useState(0);
   const [timeLeft, setTimeLeft] = useState(durationSec);
@@ -177,7 +180,7 @@ function TapSprint({ onComplete, durationSec = 5 }: { onComplete: (score: number
 
   useEffect(() => {
     if (phase === "done") {
-      const t = setTimeout(() => onComplete(taps), 1500);
+      const t = setTimeout(() => onComplete(taps, { elapsedSec: durationSec }), 1500);
       return () => clearTimeout(t);
     }
   }, [phase, taps, onComplete]);
