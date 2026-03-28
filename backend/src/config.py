@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     # ── App ──
     environment: str = "development"
     debug: bool = True
+    bootstrap_first_admin_enabled: bool = True
+    dev_invitation_bypass_code: str = "LOCAL-DEV-BYPASS"
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 
