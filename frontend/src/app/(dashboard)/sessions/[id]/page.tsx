@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
 import { ArrowLeft, Eye, EyeOff, Trophy, Edit2, X, Check, QrCode, BarChart2, Trash2, AlertTriangle } from "lucide-react";
 import QRCode from "react-qr-code";
-import { getToken } from "@/lib/auth-token";
+import { getToken } from "@/lib/auth";
 
 interface Session {
   id: string;

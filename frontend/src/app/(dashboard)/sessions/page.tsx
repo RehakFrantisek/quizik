@@ -7,7 +7,7 @@ import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ExternalLink, Plus, Search, Trash2, AlertTriangle, Trophy, Edit2 } from "lucide-react";
 import { useLang } from "@/contexts/LangContext";
-import { getToken } from "@/lib/auth-token";
+import { getToken } from "@/lib/auth";
 
 interface Quiz {
   id: string;
