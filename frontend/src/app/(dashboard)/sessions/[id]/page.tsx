@@ -439,7 +439,7 @@ export default function SessionDetailPage() {
           {t(`status.${effectiveStatus}`) || effectiveStatus}
         </span>
         <span className={`text-xs px-2 py-0.5 rounded-full font-bold border ${isMemoryMode ? "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200" : "bg-slate-50 text-slate-700 border-slate-200"}`}>
-          {session.play_mode === "speed_match" ? "⚡ Speed Match" : isMemoryMode ? "🧠 Pexeso" : "📝 Kvíz"}
+          {session.play_mode === "speed_match" ? "⚡ Spojovačka" : isMemoryMode ? "🧠 Pexeso" : "📝 Kvíz"}
         </span>
       </div>
 
@@ -752,7 +752,7 @@ export default function SessionDetailPage() {
                   ? t("session.repeatsAllowed")
                   : `${t("sessions.maxRepeats")}: ${session.max_repeats}`} ·{" "}
                 {isMemoryMode
-                  ? session.play_mode === "speed_match" ? "Režim speed match" : "Režim pexeso"
+                  ? session.play_mode === "speed_match" ? "Režim spojovačka" : "Režim pexeso"
                   : `${session.show_correct_answer ? t("session.answersShown") : t("session.answersHidden")} · ${session.gamification_enabled ? t("session.minigamesOn") : t("session.noMinigames")}`}
                 {session.starts_at && ` · ${t("session.opens", { date: formatDate(session.starts_at)! })}`}
                 {session.ends_at && ` · ${t("session.closes", { date: formatDate(session.ends_at)! })}`}

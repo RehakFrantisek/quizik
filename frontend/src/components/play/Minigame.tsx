@@ -90,7 +90,7 @@ export function Minigame({ onComplete, type = "tap_sprint", durationSec = 5, all
     }
     if (resolved === "speed_match") {
       const pairs = getMemoryPairs(config);
-      return <SpeedMatch onComplete={onComplete} pairs={pairs} />;
+      return <SpeedMatch onComplete={onComplete} pairs={pairs} settings={getMemorySettings(config, pairs.length)} />;
     }
     if (resolved === "risk_reward") {
       return <RiskReward onComplete={onComplete} />;
@@ -115,13 +115,40 @@ export function Minigame({ onComplete, type = "tap_sprint", durationSec = 5, all
   );
 }
 
-function SpeedMatch({ onComplete, pairs }: { onComplete: (score: number, meta?: { elapsedSec?: number }) => void; pairs: MemoryPair[] }) {
+function SpeedMatch({
+  onComplete,
+  pairs,
+  settings,
+}: {
+  onComplete: (score: number, meta?: { elapsedSec?: number }) => void;
+  pairs: MemoryPair[];
+  settings: MemorySettings;
+}) {
   const { t } = useLang();
   const startedAt = useRef<number>(Date.now());
+  const [roundIndex, setRoundIndex] = useState(0);
   const [selectedLeft, setSelectedLeft] = useState<number | null>(null);
   const [matched, setMatched] = useState<Set<number>>(new Set());
-  const right = useMemo(() => pairs.map((p, idx) => ({ idx, label: p.back })).sort(() => Math.random() - 0.5), [pairs]);
+  const rounds = useMemo(() => {
+    if (pairs.length === 0) return [];
+    const shuffled = [...pairs].sort(() => Math.random() - 0.5);
+    const needed = settings.pairsPerRound * settings.rounds;
+    const limited = shuffled.slice(0, needed);
+    const output: MemoryPair[][] = [];
+    for (let i = 0; i < settings.rounds; i += 1) {
+      output.push(limited.slice(i * settings.pairsPerRound, (i + 1) * settings.pairsPerRound));
+    }
+    return output.filter((r) => r.length > 0);
+  }, [pairs, settings.pairsPerRound, settings.rounds]);
+  const activeRoundPairs = rounds[roundIndex] ?? [];
+  const right = useMemo(() => activeRoundPairs.map((p, idx) => ({ idx, label: p.back })).sort(() => Math.random() - 0.5), [activeRoundPairs, roundIndex]);
   const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt.current) / 1000));
+  useEffect(() => {
+    setRoundIndex(0);
+    setMatched(new Set());
+    setSelectedLeft(null);
+    startedAt.current = Date.now();
+  }, [pairs.length, settings.pairsPerRound, settings.rounds]);
 
   if (pairs.length === 0) {
     return (
@@ -137,29 +164,42 @@ function SpeedMatch({ onComplete, pairs }: { onComplete: (score: number, meta?: 
     if (selectedLeft === rightIdx) {
       const next = new Set(matched).add(rightIdx);
       setMatched(next);
-      if (next.size === pairs.length) {
-        onComplete(100, { elapsedSec });
+      if (next.size === activeRoundPairs.length) {
+        if (roundIndex < rounds.length - 1) {
+          setTimeout(() => {
+            setRoundIndex((prev) => prev + 1);
+            setMatched(new Set());
+            setSelectedLeft(null);
+          }, 300);
+        } else {
+          onComplete(100, { elapsedSec });
+        }
       }
     }
     setSelectedLeft(null);
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 border border-cyan-200 dark:border-cyan-900 rounded-3xl p-4 shadow-lg max-w-3xl mx-auto">
-      <p className="text-sm font-bold text-cyan-700 dark:text-cyan-300 mb-3">⚡ Speed Match</p>
+    <div className="bg-white dark:bg-gray-800 border border-cyan-200 dark:border-cyan-900 rounded-3xl p-4 shadow-lg max-w-4xl mx-auto">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm font-bold text-cyan-700 dark:text-cyan-300">⚡ Spojovačka</p>
+        <p className="text-xs font-semibold text-cyan-700 dark:text-cyan-300 bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-900 rounded-full px-3 py-1">
+          ⏱ {elapsedSec}s · kolo {Math.min(roundIndex + 1, rounds.length)}/{Math.max(1, rounds.length)}
+        </p>
+      </div>
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          {pairs.map((p, idx) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {activeRoundPairs.map((p, idx) => (
             <button key={`l-${idx}`} onClick={() => setSelectedLeft(idx)} disabled={matched.has(idx)}
-              className={`w-full text-left px-3 py-2 rounded-lg border ${matched.has(idx) ? "bg-green-50 border-green-200 text-green-700" : selectedLeft === idx ? "bg-cyan-50 border-cyan-300 text-cyan-700" : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700"}`}>
+              className={`w-full text-left px-3 py-3 min-h-14 rounded-xl border text-sm ${matched.has(idx) ? "bg-green-50 border-green-200 text-green-700" : selectedLeft === idx ? "bg-cyan-50 border-cyan-300 text-cyan-700" : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700"}`}>
               {p.front}
             </button>
           ))}
         </div>
-        <div className="space-y-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {right.map((r) => (
             <button key={`r-${r.idx}`} onClick={() => onPick(r.idx)} disabled={matched.has(r.idx)}
-              className={`w-full text-left px-3 py-2 rounded-lg border ${matched.has(r.idx) ? "bg-green-50 border-green-200 text-green-700" : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:border-cyan-300"}`}>
+              className={`w-full text-left px-3 py-3 min-h-14 rounded-xl border text-sm ${matched.has(r.idx) ? "bg-green-50 border-green-200 text-green-700" : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:border-cyan-300"}`}>
               {r.label}
             </button>
           ))}

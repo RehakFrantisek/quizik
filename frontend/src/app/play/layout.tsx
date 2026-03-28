@@ -2,9 +2,9 @@
 
 export default function PlayLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="h-screen flex flex-col overflow-hidden bg-white dark:bg-gray-950">
       {/* Non-clickable logo header */}
-      <header className="z-40 flex items-center justify-center py-3 border-b border-gray-100 bg-white/90 backdrop-blur shrink-0">
+      <header className="z-40 flex items-center justify-center py-3 border-b border-gray-100 dark:border-gray-800 bg-white/90 dark:bg-gray-900/90 backdrop-blur shrink-0">
         <span className="text-xl font-black tracking-tight bg-gradient-to-r from-violet-600 to-indigo-500 bg-clip-text text-transparent select-none">
           Qvízovna
         </span>
@@ -16,7 +16,7 @@ export default function PlayLayout({ children }: { children: React.ReactNode }) 
       </main>
 
       {/* Footer */}
-      <footer className="text-center text-xs py-3 border-t border-gray-100 text-gray-400 bg-white/60 shrink-0">
+      <footer className="text-center text-xs py-3 border-t border-gray-100 dark:border-gray-800 text-gray-400 dark:text-gray-500 bg-white/60 dark:bg-gray-900/70 shrink-0">
         © 2026 Qvízovna, postavilo FJ Media
       </footer>
     </div>

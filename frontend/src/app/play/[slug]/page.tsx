@@ -558,8 +558,14 @@ export default function PlayPage() {
       <PlayControls />
       <div className="w-full max-w-xl text-center mb-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500 dark:text-indigo-300">{t("play.practiceMode")}</p>
-        <h2 className="text-2xl font-black text-indigo-900 dark:text-indigo-100">🧠 {t("play.memoryChallengeTitle")}</h2>
-        <p className="text-sm text-indigo-700 dark:text-indigo-200">{t("play.memoryChallengeSubtitle")}</p>
+        <h2 className="text-2xl font-black text-indigo-900 dark:text-indigo-100">
+          {sessionData?.play_mode === "speed_match" ? "⚡ Spojovačka" : `🧠 ${t("play.memoryChallengeTitle")}`}
+        </h2>
+        <p className="text-sm text-indigo-700 dark:text-indigo-200">
+          {sessionData?.play_mode === "speed_match"
+            ? "Spoj správné dvojice co nejrychleji. Výsledek se uloží do žebříčku."
+            : t("play.memoryChallengeSubtitle")}
+        </p>
       </div>
       <Minigame
         type={sessionData?.play_mode === "speed_match" ? "speed_match" : "memory_pairs"}

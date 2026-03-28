@@ -455,7 +455,7 @@ export default function SessionsPage() {
               >
                 <option value="quiz">📝 Klasický kvíz</option>
                 <option value="memory_pairs">🧠 Procvičování: Pexeso</option>
-                <option value="speed_match">⚡ Procvičování: Speed Match</option>
+                <option value="speed_match">⚡ Procvičování: Spojovačka</option>
               </select>
               <p className="text-xs text-gray-500 mt-1">
                 {form.play_mode === "quiz"
@@ -655,7 +655,7 @@ export default function SessionsPage() {
 
             {(form.play_mode === "memory_pairs" || form.play_mode === "speed_match") && (
               <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 text-xs text-indigo-700 space-y-3">
-                <p className="font-semibold text-sm">{form.play_mode === "memory_pairs" ? "Pexeso" : "Speed Match"} – konfigurace pro toto spuštění</p>
+                <p className="font-semibold text-sm">{form.play_mode === "memory_pairs" ? "Pexeso" : "Spojovačka"} – konfigurace pro toto spuštění</p>
                 <p className="text-[11px] text-indigo-600">Editor párů je schválně dole formuláře, aby šel plynule vybrat quiz a hned upravovat páry.</p>
                 <div>
                   <label className="block text-xs font-semibold mb-1 text-indigo-900">Motiv kartiček</label>
@@ -854,7 +854,7 @@ export default function SessionsPage() {
                       <span className="text-xs px-2 py-0.5 rounded-full font-bold border bg-orange-50 text-orange-700 border-orange-200">{t("session.oneAttemptPerDevice")}</span>
                     )}
                     <span className={`text-xs px-2 py-0.5 rounded-full font-bold border ${s.play_mode === "memory_pairs" ? "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200" : s.play_mode === "speed_match" ? "bg-cyan-50 text-cyan-700 border-cyan-200" : "bg-slate-50 text-slate-700 border-slate-200"}`}>
-                      {s.play_mode === "memory_pairs" ? "🧠 Pexeso" : s.play_mode === "speed_match" ? "⚡ Speed Match" : "📝 Kvíz"}
+                      {s.play_mode === "memory_pairs" ? "🧠 Pexeso" : s.play_mode === "speed_match" ? "⚡ Spojovačka" : "📝 Kvíz"}
                     </span>
                     {s.gamification_enabled && (
                       <span className="text-xs px-2 py-0.5 rounded-full font-bold border bg-indigo-50 text-indigo-700 border-indigo-200">{t("session.minigamesOn")}</span>
