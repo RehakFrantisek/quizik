@@ -538,9 +538,9 @@ export default function PlayPage() {
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-violet-50 to-fuchsia-50 flex flex-col items-center justify-center py-12 px-4">
       <PlayControls />
       <div className="w-full max-w-xl text-center mb-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500">Practice Mode</p>
-        <h2 className="text-2xl font-black text-indigo-900">🧠 Pexeso Challenge</h2>
-        <p className="text-sm text-indigo-700">Najdi všechny dvojice co nejrychleji. Výsledek se uloží do žebříčku.</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500">{t("play.practiceMode")}</p>
+        <h2 className="text-2xl font-black text-indigo-900">🧠 {t("play.memoryChallengeTitle")}</h2>
+        <p className="text-sm text-indigo-700">{t("play.memoryChallengeSubtitle")}</p>
       </div>
       <Minigame
         type="memory_pairs"

@@ -185,9 +185,9 @@ export default function LeaderboardPage() {
                     <td className="px-4 py-3 text-gray-800 dark:text-gray-200">{e.participant_name}</td>
                     <td className="px-4 py-3 text-center">
                       {e.status === "completed" ? (
-                        <span className="text-[11px] font-bold uppercase tracking-wide px-2 py-1 rounded-full bg-green-100 text-green-700">Done</span>
+                        <span className="text-[11px] font-bold uppercase tracking-wide px-2 py-1 rounded-full bg-green-100 text-green-700">{t("status.completed")}</span>
                       ) : (
-                        <span className="text-[11px] font-bold uppercase tracking-wide px-2 py-1 rounded-full bg-blue-100 text-blue-700">In progress</span>
+                        <span className="text-[11px] font-bold uppercase tracking-wide px-2 py-1 rounded-full bg-blue-100 text-blue-700">{t("status.inProgress")}</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">

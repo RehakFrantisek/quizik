@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Zap } from "lucide-react";
 import { TypingRace } from "./TypingRace";
 import { SliderGame } from "./SliderGame";
+import { useLang } from "@/contexts/LangContext";
 
 interface Props {
   onComplete: (score: number, meta?: { elapsedSec?: number }) => void;
@@ -73,6 +74,7 @@ function getMemorySettings(config: Record<string, unknown> | null | undefined, t
 }
 
 export function Minigame({ onComplete, type = "tap_sprint", durationSec = 5, allowSkip = true, config = null }: Props) {
+  const { t } = useLang();
   const resolved = useRef(resolveType(type)).current;
 
   const content = (() => {
@@ -98,7 +100,7 @@ export function Minigame({ onComplete, type = "tap_sprint", durationSec = 5, all
           onClick={() => onComplete(0)}
           className="absolute -top-3 right-0 z-10 text-xs font-semibold px-3 py-1.5 rounded-full bg-white/90 border border-gray-200 text-gray-700 hover:bg-white shadow-sm"
         >
-          Skip
+          {t("play.skip")}
         </button>
       )}
       {content}
@@ -119,6 +121,7 @@ function MemoryPairs({
   customImageUrl: string | null;
   settings: MemorySettings;
 }) {
+  const { t } = useLang();
   const [roundIndex, setRoundIndex] = useState(0);
   const [flipped, setFlipped] = useState<number[]>([]);
   const [matched, setMatched] = useState<Set<number>>(new Set());
@@ -209,8 +212,8 @@ function MemoryPairs({
   if (cards.length === 0) {
     return (
       <div className="bg-white border rounded-2xl p-6 text-center shadow-sm max-w-md mx-auto">
-        <p className="text-sm text-gray-600">Pexeso nemá nastavené páry. Přeskakuji…</p>
-        <button onClick={() => onComplete(0)} className="mt-3 text-sm px-4 py-2 rounded-lg bg-indigo-600 text-white">Continue</button>
+        <p className="text-sm text-gray-600">{t("play.memoryNoPairs")}</p>
+        <button onClick={() => onComplete(0)} className="mt-3 text-sm px-4 py-2 rounded-lg bg-indigo-600 text-white">{t("play.continue")}</button>
       </div>
     );
   }
@@ -218,7 +221,7 @@ function MemoryPairs({
   return (
     <div className="bg-white border border-indigo-200 rounded-3xl p-4 shadow-lg max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-bold text-indigo-700">🧠 Memory Pairs</p>
+        <p className="text-sm font-bold text-indigo-700">🧠 {t("play.memoryPairsTitle")}</p>
         <div className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-full px-3 py-1">
           ⏱ {elapsedSec}s
         </div>
@@ -230,7 +233,7 @@ function MemoryPairs({
             <button
               key={`${card.pairId}-${idx}`}
               onClick={() => clickCard(idx)}
-              className="w-36 h-36 md:w-40 md:h-40 rounded-2xl border shadow-sm transition-transform duration-200 active:scale-[0.98] overflow-hidden"
+              className="w-32 h-28 md:w-36 md:h-32 rounded-2xl border shadow-sm transition-transform duration-200 active:scale-[0.98] overflow-hidden"
             >
               {isOpen ? (
                 <span className="w-full h-full bg-indigo-50 border-indigo-300 text-indigo-900 flex items-center justify-center px-2 text-xs md:text-sm leading-snug">
@@ -250,7 +253,7 @@ function MemoryPairs({
         })}
       </div>
       <p className="text-[11px] text-gray-500 mt-3">
-        Pairs: {matched.size / 2}/{cards.length / 2} • Round {Math.min(roundIndex + 1, rounds.length)}/{rounds.length}
+        {t("play.memoryPairsProgress", { matched: matched.size / 2, total: cards.length / 2, round: Math.min(roundIndex + 1, rounds.length), rounds: rounds.length })}
       </p>
     </div>
   );

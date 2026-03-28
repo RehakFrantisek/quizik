@@ -16,6 +16,7 @@ from src.models.quiz import Quiz
 from src.models.quiz_session import QuizSession
 from src.models.user import User
 from src.schemas.session import ScoreOverrideRequest, SessionCreate, SessionUpdate
+from src.services.evaluation_service import evaluate_answer
 
 
 # ── Quiz cloning ──────────────────────────────────────────────────────────────
@@ -192,7 +193,9 @@ async def list_attempts(
         .options(selectinload(Attempt.answers))
         .order_by(Attempt.completed_at.desc().nullslast())
     )
-    return list((await db.execute(stmt)).scalars().all())
+    attempts = list((await db.execute(stmt)).scalars().all())
+    await _hydrate_in_progress_scores(db, session, attempts)
+    return attempts
 
 
 async def get_attempt_detail(
@@ -214,6 +217,33 @@ async def get_attempt_detail(
     if not attempt:
         raise NotFoundException(resource="Attempt")
     return attempt
+
+
+async def _hydrate_in_progress_scores(
+    db: AsyncSession,
+    session: QuizSession,
+    attempts: list[Attempt],
+) -> None:
+    """Compute transient score/% for in-progress attempts from partial answers."""
+    in_progress = [a for a in attempts if a.status == "in_progress"]
+    if not in_progress:
+        return
+
+    q_stmt = select(Question).where(Question.quiz_id == session.quiz_id)
+    questions = {str(q.id): q for q in (await db.execute(q_stmt)).scalars().all()}
+    max_score = sum(q.points for q in questions.values())
+    for attempt in in_progress:
+        partial = attempt.partial_answers if isinstance(attempt.partial_answers, dict) else {}
+        total = 0
+        for q_id, response in partial.items():
+            question = questions.get(str(q_id))
+            if not question:
+                continue
+            _, points = evaluate_answer(question, response)
+            total += points
+        attempt.score = total
+        attempt.max_score = max_score
+        attempt.percentage = round(total / max_score * 100, 1) if max_score > 0 else 0.0
 
 
 async def hide_attempt_from_leaderboard(
@@ -297,6 +327,21 @@ async def get_leaderboard(
         raise NotFoundException(resource="QuizSession")
 
     status_filter = ["completed", "in_progress"] if include_in_progress else ["completed"]
+    if getattr(session, "play_mode", "quiz") == "memory_pairs":
+        order_fields = [
+            case((Attempt.status == "completed", 0), else_=1),
+            Attempt.time_spent_sec.asc().nullslast(),
+            Attempt.score.desc().nullslast(),
+            Attempt.completed_at.asc().nullslast(),
+            Attempt.started_at.asc(),
+        ]
+    else:
+        order_fields = [
+            case((Attempt.status == "completed", 0), else_=1),
+            Attempt.score.desc().nullslast(),
+            Attempt.completed_at.asc().nullslast(),
+            Attempt.started_at.asc(),
+        ]
     stmt = (
         select(Attempt)
         .where(
@@ -304,12 +349,7 @@ async def get_leaderboard(
             Attempt.status.in_(status_filter),
             Attempt.hidden_from_leaderboard.is_(False),
         )
-        .order_by(
-            case((Attempt.status == "completed", 0), else_=1),
-            Attempt.score.desc().nullslast(),
-            Attempt.completed_at.asc().nullslast(),
-            Attempt.started_at.asc(),
-        )
+        .order_by(*order_fields)
     )
     return list((await db.execute(stmt)).scalars().all())
 

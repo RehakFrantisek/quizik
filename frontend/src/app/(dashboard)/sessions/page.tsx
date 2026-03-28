@@ -149,6 +149,16 @@ export default function SessionsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.quiz_id]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const lastTheme = localStorage.getItem("quizik_memory_last_theme_url");
+    if (!lastTheme) return;
+    setForm((prev) => {
+      if (prev.memory_custom_image_url) return prev;
+      return { ...prev, memory_custom_image_url: lastTheme };
+    });
+  }, []);
+
   const loadSessions = async () => {
     const data = await apiClient.get("/sessions");
     setSessions(Array.isArray(data) ? data : []);
@@ -297,6 +307,9 @@ export default function SessionsPage() {
       });
       if (!res.ok) throw new Error("Upload motivu selhal.");
       const data = await res.json();
+      if (typeof window !== "undefined") {
+        localStorage.setItem("quizik_memory_last_theme_url", data.url);
+      }
       setForm((prev) => ({ ...prev, memory_theme: "custom", memory_custom_image_url: data.url }));
     } catch (err) {
       alert(err instanceof Error ? err.message : "Upload motivu selhal.");

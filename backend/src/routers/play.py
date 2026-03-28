@@ -155,7 +155,7 @@ async def get_leaderboard(
     if not session.leaderboard_enabled:
         return {"leaderboard_enabled": False, "entries": []}
 
-    attempts = await get_leaderboard(db, session.id, include_in_progress=True)
+    attempts = await get_leaderboard(db, session.id, include_in_progress=False)
     entries = []
     completed_rank = 0
     for a in attempts:
