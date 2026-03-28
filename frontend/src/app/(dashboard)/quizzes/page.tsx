@@ -613,6 +613,15 @@ export default function QuizzesDashboard() {
                     className="flex items-center gap-1.5 text-red-400 hover:text-white hover:bg-red-500 bg-red-50 border border-red-200 text-sm px-3 py-1.5 rounded-xl transition-all">
                     <Trash2 size={14} />
                   </button>
+                  <button onClick={() => setMergeTargetId(quiz.id)} className="flex items-center gap-1 text-sm px-2.5 py-1.5 rounded-xl border bg-blue-50 text-blue-700 border-blue-200">
+                    <GitMerge size={14} /> <span className="hidden sm:inline">Merge</span>
+                  </button>
+                  <button onClick={() => downloadExport(quiz.id, "json")} className="flex items-center gap-1 text-sm px-2.5 py-1.5 rounded-xl border bg-gray-50 text-gray-700 border-gray-200">
+                    <Download size={14} /> <span className="hidden sm:inline">JSON</span>
+                  </button>
+                  <button onClick={() => downloadExport(quiz.id, "csv")} className="flex items-center gap-1 text-sm px-2.5 py-1.5 rounded-xl border bg-gray-50 text-gray-700 border-gray-200">
+                    <Download size={14} /> <span className="hidden sm:inline">CSV</span>
+                  </button>
                 </div>
               </div>
             ))}
