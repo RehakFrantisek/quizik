@@ -8,7 +8,7 @@ import { useLang } from "@/contexts/LangContext";
 
 interface Props {
   onComplete: (score: number, meta?: { elapsedSec?: number }) => void;
-  type?: "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "random";
+  type?: "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "speed_match" | "risk_reward" | "random";
   durationSec?: number;
   allowSkip?: boolean;
   config?: Record<string, unknown> | null;
@@ -20,7 +20,7 @@ const RANDOM_TYPES: Array<"tap_sprint" | "typing_race" | "slider"> = [
   "slider",
 ];
 
-function resolveType(type: Props["type"]): "tap_sprint" | "typing_race" | "slider" | "memory_pairs" {
+function resolveType(type: Props["type"]): "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "speed_match" | "risk_reward" {
   if (type === "random") {
     return RANDOM_TYPES[Math.floor(Math.random() * RANDOM_TYPES.length)];
   }
@@ -88,6 +88,13 @@ export function Minigame({ onComplete, type = "tap_sprint", durationSec = 5, all
       const pairs = getMemoryPairs(config);
       return <MemoryPairs onComplete={onComplete} pairs={pairs} theme={getMemoryTheme(config)} customImageUrl={getMemoryCustomImage(config)} settings={getMemorySettings(config, pairs.length)} />;
     }
+    if (resolved === "speed_match") {
+      const pairs = getMemoryPairs(config);
+      return <SpeedMatch onComplete={onComplete} pairs={pairs} />;
+    }
+    if (resolved === "risk_reward") {
+      return <RiskReward onComplete={onComplete} />;
+    }
 
     // tap_sprint (default)
     return <TapSprint onComplete={onComplete} durationSec={durationSec} />;
@@ -104,6 +111,88 @@ export function Minigame({ onComplete, type = "tap_sprint", durationSec = 5, all
         </button>
       )}
       {content}
+    </div>
+  );
+}
+
+function SpeedMatch({ onComplete, pairs }: { onComplete: (score: number, meta?: { elapsedSec?: number }) => void; pairs: MemoryPair[] }) {
+  const { t } = useLang();
+  const startedAt = useRef<number>(Date.now());
+  const [selectedLeft, setSelectedLeft] = useState<number | null>(null);
+  const [matched, setMatched] = useState<Set<number>>(new Set());
+  const right = useMemo(() => pairs.map((p, idx) => ({ idx, label: p.back })).sort(() => Math.random() - 0.5), [pairs]);
+  const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt.current) / 1000));
+
+  if (pairs.length === 0) {
+    return (
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 text-center shadow-sm max-w-md mx-auto">
+        <p className="text-sm text-gray-600 dark:text-gray-300">{t("play.memoryNoPairs")}</p>
+        <button onClick={() => onComplete(0)} className="mt-3 text-sm px-4 py-2 rounded-lg bg-indigo-600 text-white">{t("play.continue")}</button>
+      </div>
+    );
+  }
+
+  const onPick = (rightIdx: number) => {
+    if (selectedLeft == null || matched.has(selectedLeft) || matched.has(rightIdx)) return;
+    if (selectedLeft === rightIdx) {
+      const next = new Set(matched).add(rightIdx);
+      setMatched(next);
+      if (next.size === pairs.length) {
+        onComplete(100, { elapsedSec });
+      }
+    }
+    setSelectedLeft(null);
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-800 border border-cyan-200 dark:border-cyan-900 rounded-3xl p-4 shadow-lg max-w-3xl mx-auto">
+      <p className="text-sm font-bold text-cyan-700 dark:text-cyan-300 mb-3">⚡ Speed Match</p>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          {pairs.map((p, idx) => (
+            <button key={`l-${idx}`} onClick={() => setSelectedLeft(idx)} disabled={matched.has(idx)}
+              className={`w-full text-left px-3 py-2 rounded-lg border ${matched.has(idx) ? "bg-green-50 border-green-200 text-green-700" : selectedLeft === idx ? "bg-cyan-50 border-cyan-300 text-cyan-700" : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700"}`}>
+              {p.front}
+            </button>
+          ))}
+        </div>
+        <div className="space-y-2">
+          {right.map((r) => (
+            <button key={`r-${r.idx}`} onClick={() => onPick(r.idx)} disabled={matched.has(r.idx)}
+              className={`w-full text-left px-3 py-2 rounded-lg border ${matched.has(r.idx) ? "bg-green-50 border-green-200 text-green-700" : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:border-cyan-300"}`}>
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RiskReward({ onComplete }: { onComplete: (score: number, meta?: { elapsedSec?: number }) => void }) {
+  const [round, setRound] = useState(1);
+  const [score, setScore] = useState(50);
+  const maxRounds = 5;
+  const finish = (finalScore: number) => onComplete(Math.max(0, Math.min(100, finalScore)));
+  const play = (stake: number) => {
+    const success = Math.random() < 0.55;
+    const next = success ? score + stake : score - stake;
+    if (round >= maxRounds) return finish(next);
+    setScore(next);
+    setRound((r) => r + 1);
+  };
+  return (
+    <div className="bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-900 rounded-3xl p-5 shadow-lg max-w-md mx-auto text-center">
+      <p className="text-sm font-bold text-amber-700 dark:text-amber-300 mb-1">🎲 Risk / Reward Quiz</p>
+      <p className="text-xs text-gray-500 mb-3">Kolo {round}/{maxRounds}</p>
+      <p className="text-3xl font-black text-gray-800 dark:text-gray-100 mb-3">{score}</p>
+      <div className="grid grid-cols-3 gap-2">
+        {[5, 10, 20].map((stake) => (
+          <button key={stake} onClick={() => play(stake)} className="px-3 py-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 font-semibold">
+            Vsadit {stake}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

@@ -327,7 +327,7 @@ async def get_leaderboard(
         raise NotFoundException(resource="QuizSession")
 
     status_filter = ["completed", "in_progress"] if include_in_progress else ["completed"]
-    if getattr(session, "play_mode", "quiz") == "memory_pairs":
+    if getattr(session, "play_mode", "quiz") in {"memory_pairs", "speed_match"}:
         order_fields = [
             case((Attempt.status == "completed", 0), else_=1),
             Attempt.time_spent_sec.asc().nullslast(),

@@ -94,6 +94,18 @@ function getDeviceToken(): string {
   return token;
 }
 
+function pickEnabledMinigame(sessionData: SessionData | null): "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "risk_reward" {
+  const fallback = (sessionData?.minigame_type as "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "risk_reward" | undefined) ?? "tap_sprint";
+  const raw = sessionData?.minigame_config && typeof sessionData.minigame_config === "object"
+    ? (sessionData.minigame_config as { enabled_minigames?: unknown }).enabled_minigames
+    : null;
+  if (!Array.isArray(raw) || raw.length === 0) return fallback;
+  const allowed = raw.filter((x): x is "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "risk_reward" =>
+    typeof x === "string" && ["tap_sprint", "typing_race", "slider", "memory_pairs", "risk_reward"].includes(x));
+  if (allowed.length === 0) return fallback;
+  return allowed[Math.floor(Math.random() * allowed.length)];
+}
+
 function PlayControls() {
   const { theme, toggleTheme } = useTheme();
   const { lang, toggleLang } = useLang();
@@ -212,7 +224,7 @@ export default function PlayPage() {
       if ((sessionData?.bonus_unlock_mode ?? "immediate") === "random") {
         setBonusVisibleRandom(Math.random() < 0.4);
       }
-      setPhase(sessionData?.play_mode === "memory_pairs" ? "memory_mode" : "quiz");
+      setPhase(sessionData?.play_mode === "memory_pairs" || sessionData?.play_mode === "speed_match" ? "memory_mode" : "quiz");
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to start");
     }
@@ -453,7 +465,7 @@ export default function PlayPage() {
   // ── Result screen ──
 
   if (phase === "result" && result) {
-    const isMemoryMode = sessionData?.play_mode === "memory_pairs";
+    const isMemoryMode = sessionData?.play_mode === "memory_pairs" || sessionData?.play_mode === "speed_match";
     const passed = isMemoryMode ? true : result.percentage >= 70;
     const bonusEndCorrection = sessionData?.bonuses_enabled && sessionData?.bonus_end_correction;
     const wrongAnswers = allAnswerResults.filter((ar) => !ar.is_correct);
@@ -550,7 +562,7 @@ export default function PlayPage() {
         <p className="text-sm text-indigo-700 dark:text-indigo-200">{t("play.memoryChallengeSubtitle")}</p>
       </div>
       <Minigame
-        type="memory_pairs"
+        type={sessionData?.play_mode === "speed_match" ? "speed_match" : "memory_pairs"}
         config={sessionData?.minigame_config ?? null}
         allowSkip={false}
         onComplete={(score, meta) => submitMemoryMode(score, meta?.elapsedSec ?? 0)}
@@ -562,7 +574,7 @@ export default function PlayPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center py-8 px-4">
       <PlayControls />
       <Minigame
-        type={(sessionData?.minigame_type as "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "random") ?? "tap_sprint"}
+        type={pickEnabledMinigame(sessionData)}
         config={sessionData?.minigame_config ?? null}
         durationSec={5}
         onComplete={(score) => {

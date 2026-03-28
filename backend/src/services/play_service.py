@@ -188,7 +188,7 @@ async def submit_attempt(
     answer_results = []
 
     play_mode = getattr(session, "play_mode", "quiz")
-    if play_mode == "memory_pairs":
+    if play_mode in {"memory_pairs", "speed_match"}:
         for ans_data in answers_payload:
             time_spent = ans_data.get("time_spent_sec")
             if isinstance(time_spent, int):

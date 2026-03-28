@@ -74,6 +74,13 @@ function toLocalDatetimeValue(iso: string | null): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+const MINIGAME_OPTIONS = [
+  { value: "tap_sprint", label: "⚡ Tap Sprint" },
+  { value: "typing_race", label: "⌨️ Typing Race" },
+  { value: "slider", label: "🎯 Aim & Hit" },
+  { value: "risk_reward", label: "🎲 Risk / Reward Quiz" },
+] as const;
+
 export default function SessionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -104,6 +111,7 @@ export default function SessionDetailPage() {
     show_correct_answer: true,
     gamification_enabled: false,
     minigame_type: "tap_sprint",
+    selected_minigames: ["tap_sprint"] as string[],
     minigame_trigger_mode: "every_n",
     minigame_trigger_n: 3,
     question_count: 0,
@@ -165,6 +173,9 @@ export default function SessionDetailPage() {
       show_correct_answer: session.show_correct_answer,
       gamification_enabled: session.gamification_enabled,
       minigame_type: session.minigame_type ?? "tap_sprint",
+      selected_minigames: Array.isArray(session.minigame_config?.enabled_minigames)
+        ? (session.minigame_config?.enabled_minigames as string[])
+        : [session.minigame_type ?? "tap_sprint"],
       minigame_trigger_mode: session.minigame_trigger_mode ?? "every_n",
       minigame_trigger_n: session.minigame_trigger_n ?? 3,
       question_count: session.question_count ?? 0,
@@ -195,7 +206,6 @@ export default function SessionDetailPage() {
         max_repeats: settingsForm.max_repeats,
         show_correct_answer: settingsForm.show_correct_answer,
         gamification_enabled: settingsForm.gamification_enabled,
-        minigame_type: settingsForm.minigame_type,
         minigame_trigger_mode: settingsForm.minigame_trigger_mode,
         minigame_trigger_n: settingsForm.minigame_trigger_n,
         question_count: settingsForm.question_count,
@@ -215,7 +225,7 @@ export default function SessionDetailPage() {
       else body.title = null;
       body.starts_at = settingsForm.starts_at ? new Date(settingsForm.starts_at).toISOString() : null;
       body.ends_at = settingsForm.ends_at ? new Date(settingsForm.ends_at).toISOString() : null;
-      if (session?.play_mode === "memory_pairs") {
+      if (session?.play_mode === "memory_pairs" || session?.play_mode === "speed_match") {
         body.show_correct_answer = false;
         body.gamification_enabled = false;
         body.question_count = 0;
@@ -233,6 +243,14 @@ export default function SessionDetailPage() {
           ...cfg,
           theme: settingsForm.memory_theme,
           custom_image_url: settingsForm.memory_theme === "custom" ? (settingsForm.memory_custom_image_url || null) : null,
+        };
+      } else if (settingsForm.gamification_enabled) {
+        if (settingsForm.selected_minigames.length === 0) throw new Error("Vyber alespoň jednu minihru.");
+        body.minigame_type = settingsForm.selected_minigames[0];
+        const cfg = session?.minigame_config ?? {};
+        body.minigame_config = {
+          ...cfg,
+          enabled_minigames: settingsForm.selected_minigames,
         };
       }
       await apiClient.patch(`/sessions/${id}`, body);
@@ -322,7 +340,7 @@ export default function SessionDetailPage() {
 
   const completed = attempts.filter((a) => a.status === "completed");
   const visible = completed.filter((a) => !a.hidden_from_leaderboard);
-  const isMemoryMode = session.play_mode === "memory_pairs";
+  const isMemoryMode = session.play_mode === "memory_pairs" || session.play_mode === "speed_match";
   const themeIcons: Record<string, string> = { classic: "🃏", cosmic: "🌌", jungle: "🌿", ocean: "🌊", pixel: "🕹️" };
 
   const uploadMemoryTheme = async (file: File) => {
@@ -421,7 +439,7 @@ export default function SessionDetailPage() {
           {t(`status.${effectiveStatus}`) || effectiveStatus}
         </span>
         <span className={`text-xs px-2 py-0.5 rounded-full font-bold border ${isMemoryMode ? "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200" : "bg-slate-50 text-slate-700 border-slate-200"}`}>
-          {isMemoryMode ? "🧠 Pexeso" : "📝 Kvíz"}
+          {session.play_mode === "speed_match" ? "⚡ Speed Match" : isMemoryMode ? "🧠 Pexeso" : "📝 Kvíz"}
         </span>
       </div>
 
@@ -645,16 +663,27 @@ export default function SessionDetailPage() {
 
                   <div>
                     <label className="block text-xs font-semibold mb-1">{t("sessions.gameType")}</label>
-                    <select
-                      value={settingsForm.minigame_type}
-                      onChange={(e) => setSettingsForm({ ...settingsForm, minigame_type: e.target.value })}
-                      className="w-full border border-indigo-300 rounded-lg px-3 py-1.5 text-sm bg-white text-gray-700 focus:ring-2 focus:ring-indigo-400 outline-none"
-                    >
-                      <option value="tap_sprint">⚡ Tap Sprint — tap as fast as possible</option>
-                      <option value="typing_race">⌨️ Typing Race — type words quickly</option>
-                      <option value="slider">🎯 Aim & Hit — tap when dot hits the target</option>
-                      <option value="random">🎲 Random — different game each time</option>
-                    </select>
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      {MINIGAME_OPTIONS.map((mg) => {
+                        const checked = settingsForm.selected_minigames.includes(mg.value);
+                        return (
+                          <label key={mg.value} className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 bg-white ${checked ? "border-indigo-400" : "border-indigo-200"}`}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => {
+                                const next = e.target.checked
+                                  ? [...settingsForm.selected_minigames, mg.value]
+                                  : settingsForm.selected_minigames.filter((v) => v !== mg.value);
+                                setSettingsForm({ ...settingsForm, selected_minigames: Array.from(new Set(next)) });
+                              }}
+                            />
+                            <span>{mg.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[11px] text-indigo-600 mt-1">Když vybereš víc miniher, budou se náhodně střídat z vybraných.</p>
                   </div>
 
                   <div>
@@ -723,7 +752,7 @@ export default function SessionDetailPage() {
                   ? t("session.repeatsAllowed")
                   : `${t("sessions.maxRepeats")}: ${session.max_repeats}`} ·{" "}
                 {isMemoryMode
-                  ? "Režim pexeso"
+                  ? session.play_mode === "speed_match" ? "Režim speed match" : "Režim pexeso"
                   : `${session.show_correct_answer ? t("session.answersShown") : t("session.answersHidden")} · ${session.gamification_enabled ? t("session.minigamesOn") : t("session.noMinigames")}`}
                 {session.starts_at && ` · ${t("session.opens", { date: formatDate(session.starts_at)! })}`}
                 {session.ends_at && ` · ${t("session.closes", { date: formatDate(session.ends_at)! })}`}
