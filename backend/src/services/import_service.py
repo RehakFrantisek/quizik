@@ -96,21 +96,32 @@ async def confirm_import(
         if job.quiz_id is not None:
             raise AppException(status_code=400, code="JOB_ALREADY_CONFIRMED", message="Job already confirmed")
 
-        # 1. Create Quiz Setup
-        quiz = Quiz(
-            author_id=user_id,
-            title=request.title,
-            description=request.description,
-            status="draft",
-        )
-        session.add(quiz)
-        await session.flush()  # To get quiz.id
+        # 1. Create or select target quiz
+        if request.mode == "append_existing":
+            if request.existing_quiz_id is None:
+                raise AppException(status_code=400, code="TARGET_REQUIRED", message="existing_quiz_id is required for append mode")
+            quiz = (await session.execute(select(Quiz).where(Quiz.id == request.existing_quiz_id))).scalar_one_or_none()
+            if not quiz:
+                raise NotFoundException("Quiz")
+            if quiz.author_id != user_id:
+                raise AppException(status_code=403, code="FORBIDDEN", message="You can append only to your own quiz")
+            base_position = len((await session.execute(select(Question).where(Question.quiz_id == quiz.id))).scalars().all())
+        else:
+            quiz = Quiz(
+                author_id=user_id,
+                title=request.title,
+                description=request.description,
+                status="draft",
+            )
+            session.add(quiz)
+            await session.flush()  # To get quiz.id
+            base_position = 0
 
         # 2. Iterate and Create Questions
         for i, q_preview in enumerate(request.questions):
             question = Question(
                 quiz_id=quiz.id,
-                position=i,
+                position=base_position + i,
                 type=q_preview.type,
                 body=q_preview.body,
                 explanation=q_preview.explanation,
