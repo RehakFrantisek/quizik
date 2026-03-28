@@ -31,7 +31,7 @@ interface Quiz {
   share_slug?: string | null;
   clone_of_id?: string | null;
   is_imported?: boolean;
-  questions?: unknown[];
+  questions?: Array<{ body?: string }>;
 }
 
 export default function QuizzesDashboard() {
@@ -62,6 +62,21 @@ export default function QuizzesDashboard() {
   const [mergeStrategy, setMergeStrategy] = useState<"append" | "interleave">("append");
   const [mergeDeduplicate, setMergeDeduplicate] = useState(true);
   const [mergeLoading, setMergeLoading] = useState(false);
+
+  const mergePreview = (() => {
+    if (!mergeTargetId) return null;
+    const target = quizzes.find((q) => q.id === mergeTargetId);
+    if (!target) return null;
+    const sources = quizzes.filter((q) => mergeSourceIds.includes(q.id));
+    const targetBodies = new Set((target.questions ?? []).map((qq) => (qq.body ?? "").trim().toLowerCase()).filter(Boolean));
+    const sourceQuestions = sources.flatMap((s) => s.questions ?? []);
+    const sourceBodies = sourceQuestions.map((qq) => (qq.body ?? "").trim().toLowerCase()).filter(Boolean);
+    const uniqueSourceCount = mergeDeduplicate
+      ? sourceBodies.filter((b, i) => !targetBodies.has(b) && sourceBodies.indexOf(b) === i).length
+      : sourceQuestions.length;
+    const targetCount = target.questions?.length ?? 0;
+    return { targetCount, sourceCount: sourceQuestions.length, uniqueSourceCount, finalCount: targetCount + uniqueSourceCount };
+  })();
 
   useEffect(() => {
     if (!isLoading && !user) router.replace("/login");
@@ -345,7 +360,8 @@ export default function QuizzesDashboard() {
       {mergeTargetId && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-lg w-full mx-4">
-            <h2 className="text-lg font-bold text-gray-800 mb-3">Merge into this quiz</h2>
+            <h2 className="text-lg font-bold text-gray-800 mb-1">Sloučit do tohoto kvízu</h2>
+            <p className="text-sm text-gray-500 mb-3">Vyber zdrojové kvízy, strategii a deduplikaci.</p>
             <div className="space-y-2 max-h-56 overflow-auto border rounded-lg p-3">
               {quizzes.filter((q) => q.id !== mergeTargetId).map((q) => (
                 <label key={q.id} className="flex items-center gap-2 text-sm">
@@ -360,19 +376,27 @@ export default function QuizzesDashboard() {
             </div>
             <div className="grid grid-cols-2 gap-3 mt-3">
               <select value={mergeStrategy} onChange={(e) => setMergeStrategy(e.target.value as "append" | "interleave")} className="border rounded-lg px-3 py-2 text-sm">
-                <option value="append">Append</option>
-                <option value="interleave">Interleave</option>
+                <option value="append">Přidat na konec</option>
+                <option value="interleave">Proložit s existujícími</option>
               </select>
               <label className="text-sm flex items-center gap-2">
                 <input type="checkbox" checked={mergeDeduplicate} onChange={(e) => setMergeDeduplicate(e.target.checked)} />
                 Deduplikace
               </label>
             </div>
+            {mergePreview && (
+              <div className="mt-3 text-xs rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-indigo-800 space-y-1">
+                <p>Aktuálně v cíli: <b>{mergePreview.targetCount}</b> otázek</p>
+                <p>Vybráno ze zdrojů: <b>{mergePreview.sourceCount}</b> otázek</p>
+                <p>Po deduplikaci přibude: <b>{mergePreview.uniqueSourceCount}</b> otázek</p>
+                <p>Výsledný odhad: <b>{mergePreview.finalCount}</b> otázek</p>
+              </div>
+            )}
             <div className="flex gap-2 mt-4">
               <button onClick={runMerge} disabled={mergeLoading || mergeSourceIds.length === 0} className="bg-indigo-600 text-white px-4 py-2 rounded-lg disabled:opacity-50">
-                {mergeLoading ? "Merging..." : "Merge"}
+                {mergeLoading ? "Slučuji..." : "Sloučit"}
               </button>
-              <button onClick={() => setMergeTargetId(null)} className="border px-4 py-2 rounded-lg">Cancel</button>
+              <button onClick={() => setMergeTargetId(null)} className="border px-4 py-2 rounded-lg">Zrušit</button>
             </div>
           </div>
         </div>
@@ -491,7 +515,7 @@ export default function QuizzesDashboard() {
                     <Trash2 size={14} />
                   </button>
                   <button onClick={() => setMergeTargetId(quiz.id)} className="flex items-center gap-1 text-sm px-2.5 py-1.5 rounded-xl border bg-blue-50 text-blue-700 border-blue-200">
-                    <GitMerge size={14} />
+                    <GitMerge size={14} /> <span className="hidden sm:inline">Merge</span>
                   </button>
                   <button onClick={() => downloadExport(quiz.id, "json")} className="flex items-center gap-1 text-sm px-2.5 py-1.5 rounded-xl border bg-gray-50 text-gray-700 border-gray-200">
                     <Download size={14} /> <span className="hidden sm:inline">JSON</span>
