@@ -154,17 +154,23 @@ async def get_leaderboard(
     if not session.leaderboard_enabled:
         return {"leaderboard_enabled": False, "entries": []}
 
-    attempts = await get_leaderboard(db, session.id)
-    entries = [
-        {
-            "rank": i + 1,
-            "participant_name": a.participant_name,
-            "score": a.score,
-            "max_score": a.max_score,
-            "percentage": a.percentage,
-            "time_spent_sec": a.time_spent_sec,
-            "completed_at": a.completed_at.isoformat() if a.completed_at else None,
-        }
-        for i, a in enumerate(attempts)
-    ]
+    attempts = await get_leaderboard(db, session.id, include_in_progress=True)
+    entries = []
+    completed_rank = 0
+    for a in attempts:
+        is_completed = a.status == "completed"
+        if is_completed:
+            completed_rank += 1
+        entries.append(
+            {
+                "rank": completed_rank if is_completed else None,
+                "status": a.status,
+                "participant_name": a.participant_name,
+                "score": a.score,
+                "max_score": a.max_score,
+                "percentage": a.percentage,
+                "time_spent_sec": a.time_spent_sec,
+                "completed_at": a.completed_at.isoformat() if a.completed_at else None,
+            }
+        )
     return {"leaderboard_enabled": True, "entries": entries}

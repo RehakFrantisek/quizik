@@ -30,10 +30,12 @@ interface SessionData {
   title: string;
   description: string | null;
   leaderboard_enabled: boolean;
+  play_mode?: "quiz" | "memory_pairs" | string;
   allow_repeat: boolean;
   show_correct_answer: boolean;
   gamification_enabled?: boolean;
   minigame_type?: string;
+  minigame_config?: Record<string, unknown> | null;
   minigame_trigger_mode?: string;
   minigame_trigger_n?: number;
   time_limit_sec: number | null;
@@ -55,7 +57,22 @@ interface AnswerResult {
   correct_texts: string[];
 }
 
-type Phase = "name" | "quiz" | "minigame" | "result" | "error" | "already_attempted";
+function answerToText(
+  question: Question | undefined,
+  answer: string | string[] | undefined,
+  fallback: string,
+): string {
+  if (answer == null) return fallback;
+  if (!question) return Array.isArray(answer) ? answer.join(", ") : answer;
+  const map = new Map(question.options.map((opt) => [opt.id, opt.text]));
+  if (Array.isArray(answer)) {
+    if (answer.length === 0) return fallback;
+    return answer.map((id) => map.get(id) ?? id).join(", ");
+  }
+  return map.get(answer) ?? answer;
+}
+
+type Phase = "name" | "quiz" | "minigame" | "memory_mode" | "result" | "error" | "already_attempted";
 
 interface Result {
   score: number;
@@ -194,9 +211,37 @@ export default function PlayPage() {
       if ((sessionData?.bonus_unlock_mode ?? "immediate") === "random") {
         setBonusVisibleRandom(Math.random() < 0.4);
       }
-      setPhase("quiz");
+      setPhase(sessionData?.play_mode === "memory_pairs" ? "memory_mode" : "quiz");
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to start");
+    }
+  };
+
+  const submitMemoryMode = async (score: number, elapsedSec: number) => {
+    if (!sessionData || !attemptIdRef.current) return;
+    try {
+      const res = await fetch(`/api/v1/play/${slug}/attempts/${attemptIdRef.current}/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          answers: [{ question_id: sessionData.questions[0]?.id ?? null, response: null, time_spent_sec: Math.max(1, elapsedSec) }],
+          minigame_score: score,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to submit memory mode");
+      const data = await res.json();
+      setAllAnswerResults(Array.isArray(data.answer_results) ? data.answer_results : []);
+      setResult({
+        score: data.score,
+        max_score: data.max_score,
+        percentage: data.percentage,
+        minigame_score: data.minigame_score ?? score,
+        leaderboard_enabled: sessionData.leaderboard_enabled,
+      });
+      setPhase("result");
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Failed to submit memory mode");
+      setPhase("error");
     }
   };
 
@@ -446,7 +491,7 @@ export default function PlayPage() {
               {allAnswerResults.map((ar, i) => {
                 const qs = sessionData.questions.find(qq => qq.id === ar.question_id);
                 const userAns = answers[ar.question_id];
-                const userAnsText = Array.isArray(userAns) ? userAns.join(", ") : (userAns ?? t("play.noAnswer"));
+                const userAnsText = answerToText(qs, userAns, t("play.noAnswer"));
                 const canCorrect = bonusEndCorrection && !endCorrectionUsed && !ar.is_correct;
                 return (
                   <div key={ar.question_id} className={`p-3 rounded-xl text-sm ${ar.is_correct ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}>
@@ -484,11 +529,29 @@ export default function PlayPage() {
 
   // ── Minigame phase ──
 
+  if (phase === "memory_mode") return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-violet-50 to-fuchsia-50 flex flex-col items-center justify-center py-12 px-4">
+      <PlayControls />
+      <div className="w-full max-w-xl text-center mb-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500">Practice Mode</p>
+        <h2 className="text-2xl font-black text-indigo-900">🧠 Pexeso Challenge</h2>
+        <p className="text-sm text-indigo-700">Najdi všechny dvojice co nejrychleji. Výsledek se uloží do žebříčku.</p>
+      </div>
+      <Minigame
+        type="memory_pairs"
+        config={sessionData?.minigame_config ?? null}
+        allowSkip={false}
+        onComplete={(score, meta) => submitMemoryMode(score, meta?.elapsedSec ?? 0)}
+      />
+    </div>
+  );
+
   if (phase === "minigame") return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center py-12 px-4">
       <PlayControls />
       <Minigame
-        type={(sessionData?.minigame_type as "tap_sprint" | "typing_race" | "slider" | "random") ?? "tap_sprint"}
+        type={(sessionData?.minigame_type as "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "random") ?? "tap_sprint"}
+        config={sessionData?.minigame_config ?? null}
         durationSec={5}
         onComplete={(score) => {
           setMinigameScores((prev) => [...prev, score]);
