@@ -209,7 +209,7 @@ export default function SessionsPage() {
             front: p.front.trim(),
             back: p.back.trim(),
           }));
-        const pairsPerRound = Math.min(Math.max(1, form.memory_pairs_per_round), selectedPairs.length);
+        const pairsPerRound = Math.min(4, Math.min(Math.max(1, form.memory_pairs_per_round), selectedPairs.length));
         const rounds = Math.min(Math.max(1, form.memory_rounds), Math.floor(selectedPairs.length / pairsPerRound) || 1);
         if (selectedPairs.length === 0) throw new Error("Pexeso vyžaduje alespoň 1 aktivní pár.");
         body.minigame_config = {
@@ -278,7 +278,7 @@ export default function SessionsPage() {
   const isMemoryMode = form.play_mode === "memory_pairs";
   const enabledPairs = memoryPairs.filter((p) => p.enabled && p.front.trim() && p.back.trim());
   const enabledPairCount = enabledPairs.length;
-  const pairsPerRoundMax = Math.max(1, enabledPairCount);
+  const pairsPerRoundMax = Math.max(1, Math.min(4, enabledPairCount));
   const safePairsPerRound = Math.min(pairsPerRoundMax, Math.max(1, form.memory_pairs_per_round));
   const roundsMax = Math.max(1, Math.floor(enabledPairCount / safePairsPerRound));
   const safeRounds = Math.min(roundsMax, Math.max(1, form.memory_rounds));

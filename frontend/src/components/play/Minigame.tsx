@@ -65,9 +65,9 @@ function getMemoryCustomImage(config: Record<string, unknown> | null | undefined
 function getMemorySettings(config: Record<string, unknown> | null | undefined, totalPairs: number): MemorySettings {
   const rawPairsPerRound = Number(config?.pairs_per_round ?? 4);
   const rawRounds = Number(config?.rounds ?? 1);
-  const maxPairs = Math.max(1, totalPairs);
-  const pairsPerRound = Math.min(maxPairs, Math.max(1, Number.isFinite(rawPairsPerRound) ? Math.floor(rawPairsPerRound) : 4));
-  const maxRounds = Math.max(1, Math.floor(maxPairs / pairsPerRound));
+  const pairPool = Math.max(1, totalPairs);
+  const pairsPerRound = Math.min(4, pairPool, Math.max(1, Number.isFinite(rawPairsPerRound) ? Math.floor(rawPairsPerRound) : 4));
+  const maxRounds = Math.max(1, Math.floor(pairPool / pairsPerRound));
   const rounds = Math.min(maxRounds, Math.max(1, Number.isFinite(rawRounds) ? Math.floor(rawRounds) : 1));
   return { pairsPerRound, rounds };
 }
@@ -223,14 +223,14 @@ function MemoryPairs({
           ⏱ {elapsedSec}s
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-3 place-items-center">
         {cards.map((card, idx) => {
           const isOpen = matched.has(idx) || flipped.includes(idx);
           return (
             <button
               key={`${card.pairId}-${idx}`}
               onClick={() => clickCard(idx)}
-              className="h-28 md:h-32 rounded-2xl border shadow-sm transition-transform duration-200 active:scale-[0.98] overflow-hidden"
+              className="w-36 h-36 md:w-40 md:h-40 rounded-2xl border shadow-sm transition-transform duration-200 active:scale-[0.98] overflow-hidden"
             >
               {isOpen ? (
                 <span className="w-full h-full bg-indigo-50 border-indigo-300 text-indigo-900 flex items-center justify-center px-2 text-xs md:text-sm leading-snug">
@@ -238,7 +238,7 @@ function MemoryPairs({
                 </span>
               ) : (
                 customImageUrl && theme === "custom" ? (
-                  <span className="w-full h-full bg-center bg-cover" style={{ backgroundImage: `url(${customImageUrl})` }} />
+                  <img src={customImageUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <span className={`w-full h-full ${themeBack[(theme === "custom" ? "classic" : theme)].className} flex items-center justify-center text-4xl md:text-5xl`}>
                     {themeBack[(theme === "custom" ? "classic" : theme)].icon}
