@@ -36,6 +36,26 @@ interface Group {
   name: string;
 }
 
+interface QuizQuestionOption {
+  id: string;
+  text: string;
+  is_correct?: boolean;
+}
+
+interface QuizQuestion {
+  id: string;
+  type: string;
+  body: string;
+  options: QuizQuestionOption[];
+}
+
+interface MemoryPairDraft {
+  source_question_id: string;
+  front: string;
+  back: string;
+  enabled: boolean;
+}
+
 export default function SessionsPage() {
   const { t } = useLang();
   const router = useRouter();
@@ -50,6 +70,7 @@ export default function SessionsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [memoryPairs, setMemoryPairs] = useState<MemoryPairDraft[]>([]);
   const [form, setForm] = useState({
     quiz_id: "",
     title: "",
@@ -60,6 +81,7 @@ export default function SessionsPage() {
     show_correct_answer: true,
     gamification_enabled: false,
     minigame_type: "tap_sprint",
+    minigame_config: null as Record<string, unknown> | null,
     minigame_trigger_mode: "every_n",
     minigame_trigger_n: 3,
     question_count: 0,
@@ -86,6 +108,36 @@ export default function SessionsPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  useEffect(() => {
+    const loadQuizQuestions = async () => {
+      if (!form.quiz_id) {
+        setMemoryPairs([]);
+        return;
+      }
+      try {
+        const q = await apiClient.get(`/quizzes/${form.quiz_id}`);
+        const questions: QuizQuestion[] = Array.isArray(q.questions) ? q.questions : [];
+        const defaults = questions
+          .filter((qq) => qq.type === "single_choice")
+          .map((qq) => {
+            const correct = qq.options.find((o) => o.is_correct);
+            return {
+              source_question_id: qq.id,
+              front: qq.body,
+              back: correct?.text ?? "",
+              enabled: Boolean(correct?.text),
+            };
+          })
+          .filter((p) => p.back.trim().length > 0);
+        setMemoryPairs(defaults);
+      } catch {
+        setMemoryPairs([]);
+      }
+    };
+    loadQuizQuestions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.quiz_id]);
 
   const loadSessions = async () => {
     const data = await apiClient.get("/sessions");
@@ -138,9 +190,20 @@ export default function SessionsPage() {
       body.minigame_type = form.minigame_type;
       body.minigame_trigger_mode = form.minigame_trigger_mode;
       body.minigame_trigger_n = form.minigame_trigger_n;
+      if (form.minigame_type === "memory_pairs") {
+        const selectedPairs = memoryPairs
+          .filter((p) => p.enabled && p.front.trim() && p.back.trim())
+          .map((p) => ({
+            source_question_id: p.source_question_id,
+            front: p.front.trim(),
+            back: p.back.trim(),
+          }));
+        body.minigame_config = { pairs: selectedPairs };
+      }
       await apiClient.post("/sessions", body);
       setShowCreate(false);
-      setForm({ quiz_id: "", title: "", starts_at: "", ends_at: "", leaderboard_enabled: true, max_repeats: 0, show_correct_answer: true, gamification_enabled: false, minigame_type: "tap_sprint", minigame_trigger_mode: "every_n", minigame_trigger_n: 3, question_count: 0, shuffle_questions: false, shuffle_options: false, anticheat_enabled: false, anticheat_tab_switch: false, anticheat_fast_answer: false, bonuses_enabled: false, bonus_eliminate: false, bonus_second_chance: false, bonus_end_correction: false, bonus_unlock_mode: "immediate", bonus_unlock_x: 3 });
+      setForm({ quiz_id: "", title: "", starts_at: "", ends_at: "", leaderboard_enabled: true, max_repeats: 0, show_correct_answer: true, gamification_enabled: false, minigame_type: "tap_sprint", minigame_config: null, minigame_trigger_mode: "every_n", minigame_trigger_n: 3, question_count: 0, shuffle_questions: false, shuffle_options: false, anticheat_enabled: false, anticheat_tab_switch: false, anticheat_fast_answer: false, bonuses_enabled: false, bonus_eliminate: false, bonus_second_chance: false, bonus_end_correction: false, bonus_unlock_mode: "immediate", bonus_unlock_x: 3 });
+      setMemoryPairs([]);
       await loadSessions();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to create session");
@@ -389,9 +452,49 @@ export default function SessionsPage() {
                     <option value="tap_sprint">⚡ Tap Sprint</option>
                     <option value="typing_race">⌨️ Typing Race</option>
                     <option value="slider">🎯 Aim & Hit</option>
+                    <option value="memory_pairs">🧠 Pexeso (Q ↔ A)</option>
                     <option value="random">🎲 Random each time</option>
                   </select>
                 </div>
+                {form.minigame_type === "memory_pairs" && (
+                  <div className="bg-white border border-indigo-200 rounded-lg p-3 space-y-2">
+                    <p className="text-xs font-semibold text-indigo-800">
+                      Vyber a uprav páry pro toto spuštění ({memoryPairs.filter((p) => p.enabled).length}/{memoryPairs.length})
+                    </p>
+                    {memoryPairs.length === 0 ? (
+                      <p className="text-xs text-gray-500">Vybraný quiz nemá single-choice otázky se správnou odpovědí.</p>
+                    ) : (
+                      <div className="max-h-52 overflow-auto space-y-2 pr-1">
+                        {memoryPairs.map((pair, idx) => (
+                          <div key={pair.source_question_id} className="border border-gray-200 rounded-lg p-2">
+                            <label className="flex items-center gap-2 text-xs font-semibold mb-2">
+                              <input
+                                type="checkbox"
+                                checked={pair.enabled}
+                                onChange={(e) => setMemoryPairs((prev) => prev.map((p) => p.source_question_id === pair.source_question_id ? { ...p, enabled: e.target.checked } : p))}
+                              />
+                              Pair {idx + 1}
+                            </label>
+                            <input
+                              type="text"
+                              value={pair.front}
+                              onChange={(e) => setMemoryPairs((prev) => prev.map((p) => p.source_question_id === pair.source_question_id ? { ...p, front: e.target.value } : p))}
+                              className="w-full border border-gray-300 rounded px-2 py-1 text-xs mb-1"
+                              placeholder="Front (question text)"
+                            />
+                            <input
+                              type="text"
+                              value={pair.back}
+                              onChange={(e) => setMemoryPairs((prev) => prev.map((p) => p.source_question_id === pair.source_question_id ? { ...p, back: e.target.value } : p))}
+                              className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                              placeholder="Back (correct answer)"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div>
                   <label className="block text-xs font-semibold mb-1">{t("sessions.whenToShow")}</label>
                   <select

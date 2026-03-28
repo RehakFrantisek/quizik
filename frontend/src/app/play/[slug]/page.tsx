@@ -34,6 +34,7 @@ interface SessionData {
   show_correct_answer: boolean;
   gamification_enabled?: boolean;
   minigame_type?: string;
+  minigame_config?: Record<string, unknown> | null;
   minigame_trigger_mode?: string;
   minigame_trigger_n?: number;
   time_limit_sec: number | null;
@@ -503,7 +504,8 @@ export default function PlayPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center py-12 px-4">
       <PlayControls />
       <Minigame
-        type={(sessionData?.minigame_type as "tap_sprint" | "typing_race" | "slider" | "random") ?? "tap_sprint"}
+        type={(sessionData?.minigame_type as "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "random") ?? "tap_sprint"}
+        config={sessionData?.minigame_config ?? null}
         durationSec={5}
         onComplete={(score) => {
           setMinigameScores((prev) => [...prev, score]);

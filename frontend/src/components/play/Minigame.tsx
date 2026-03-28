@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Zap } from "lucide-react";
 import { TypingRace } from "./TypingRace";
 import { SliderGame } from "./SliderGame";
 
 interface Props {
   onComplete: (score: number) => void;
-  type?: "tap_sprint" | "typing_race" | "slider" | "random";
+  type?: "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "random";
   durationSec?: number;
   allowSkip?: boolean;
+  config?: Record<string, unknown> | null;
 }
 
 const RANDOM_TYPES: Array<"tap_sprint" | "typing_race" | "slider"> = [
@@ -18,25 +19,46 @@ const RANDOM_TYPES: Array<"tap_sprint" | "typing_race" | "slider"> = [
   "slider",
 ];
 
-function resolveType(type: Props["type"]): "tap_sprint" | "typing_race" | "slider" {
+function resolveType(type: Props["type"]): "tap_sprint" | "typing_race" | "slider" | "memory_pairs" {
   if (type === "random") {
     return RANDOM_TYPES[Math.floor(Math.random() * RANDOM_TYPES.length)];
   }
   return type ?? "tap_sprint";
 }
 
-export function Minigame({ onComplete, type = "tap_sprint", durationSec = 5, allowSkip = true }: Props) {
+interface MemoryPair {
+  front: string;
+  back: string;
+}
+
+function getMemoryPairs(config: Record<string, unknown> | null | undefined): MemoryPair[] {
+  if (!config || !Array.isArray(config.pairs)) return [];
+  return config.pairs
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const front = typeof (item as { front?: unknown }).front === "string" ? (item as { front: string }).front : "";
+      const back = typeof (item as { back?: unknown }).back === "string" ? (item as { back: string }).back : "";
+      if (!front.trim() || !back.trim()) return null;
+      return { front, back };
+    })
+    .filter((p): p is MemoryPair => p !== null);
+}
+
+export function Minigame({ onComplete, type = "tap_sprint", durationSec = 5, allowSkip = true, config = null }: Props) {
   const resolved = useRef(resolveType(type)).current;
 
   const content = (() => {
-  if (resolved === "typing_race") {
+    if (resolved === "typing_race") {
       return <TypingRace onComplete={onComplete} durationSec={20} />;
-  }
-  if (resolved === "slider") {
+    }
+    if (resolved === "slider") {
       return <SliderGame onComplete={onComplete} durationSec={15} />;
-  }
+    }
+    if (resolved === "memory_pairs") {
+      return <MemoryPairs onComplete={onComplete} pairs={getMemoryPairs(config)} />;
+    }
 
-  // tap_sprint (default)
+    // tap_sprint (default)
     return <TapSprint onComplete={onComplete} durationSec={durationSec} />;
   })();
 
@@ -51,6 +73,80 @@ export function Minigame({ onComplete, type = "tap_sprint", durationSec = 5, all
         </button>
       )}
       {content}
+    </div>
+  );
+}
+
+function MemoryPairs({ onComplete, pairs }: { onComplete: (score: number) => void; pairs: MemoryPair[] }) {
+  const [flipped, setFlipped] = useState<number[]>([]);
+  const [matched, setMatched] = useState<Set<number>>(new Set());
+
+  const cards = useMemo(() => {
+    const selected = pairs.slice(0, 4);
+    if (selected.length === 0) return [];
+    const pool = selected.flatMap((p, idx) => ([
+      { pairId: idx, label: p.front },
+      { pairId: idx, label: p.back },
+    ]));
+    return [...pool].sort(() => Math.random() - 0.5);
+  }, [pairs]);
+
+  useEffect(() => {
+    setFlipped([]);
+    setMatched(new Set());
+  }, [cards.length]);
+
+  useEffect(() => {
+    if (cards.length === 0) return;
+    if (matched.size === cards.length) {
+      const score = pairs.length > 0 ? 100 : 0;
+      const timer = setTimeout(() => onComplete(score), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [matched, cards.length, onComplete, pairs.length]);
+
+  const clickCard = (idx: number) => {
+    if (matched.has(idx) || flipped.includes(idx) || flipped.length >= 2) return;
+    const next = [...flipped, idx];
+    setFlipped(next);
+    if (next.length === 2) {
+      const [a, b] = next;
+      if (cards[a].pairId === cards[b].pairId) {
+        setMatched((prev) => new Set(prev).add(a).add(b));
+        setFlipped([]);
+      } else {
+        setTimeout(() => setFlipped([]), 550);
+      }
+    }
+  };
+
+  if (cards.length === 0) {
+    return (
+      <div className="bg-white border rounded-2xl p-6 text-center shadow-sm max-w-md mx-auto">
+        <p className="text-sm text-gray-600">Pexeso nemá nastavené páry. Přeskakuji…</p>
+        <button onClick={() => onComplete(0)} className="mt-3 text-sm px-4 py-2 rounded-lg bg-indigo-600 text-white">Continue</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white border rounded-2xl p-4 shadow-sm max-w-md mx-auto">
+      <p className="text-sm font-bold text-indigo-700 mb-3">🧠 Memory Pairs</p>
+      <div className="grid grid-cols-2 gap-2">
+        {cards.map((card, idx) => {
+          const isOpen = matched.has(idx) || flipped.includes(idx);
+          return (
+            <button
+              key={`${card.pairId}-${idx}`}
+              onClick={() => clickCard(idx)}
+              className={`h-20 rounded-xl border text-xs px-2 transition-colors ${isOpen ? "bg-indigo-50 border-indigo-300 text-indigo-900" : "bg-indigo-600 border-indigo-700 text-indigo-100"}`}
+            >
+              {isOpen ? card.label : "?"}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[11px] text-gray-500 mt-3">Pairs: {matched.size / 2}/{cards.length / 2}</p>
     </div>
   );
 }
