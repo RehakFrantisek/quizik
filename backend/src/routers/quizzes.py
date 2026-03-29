@@ -3,7 +3,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.dependencies import get_current_user, get_db
@@ -89,6 +89,12 @@ class ImportBySlugRequest(BaseModel):
     share_slug: str
 
 
+class MergeQuizRequest(BaseModel):
+    source_quiz_ids: list[uuid.UUID]
+    strategy: str = "append"  # append | interleave
+    deduplicate: bool = True
+
+
 @router.get("/preview/{share_slug}")
 async def preview_quiz_by_slug(
     share_slug: str,
@@ -108,3 +114,43 @@ async def import_quiz_by_slug(
     source = await quiz_service.get_quiz_by_share_slug(db, body.share_slug)
     cloned = await session_service.clone_quiz(db, source.id, current_user, is_imported=True)
     return cloned
+
+
+@router.post("/{quiz_id}/merge", response_model=QuizOut)
+async def merge_into_quiz(
+    quiz_id: uuid.UUID,
+    body: MergeQuizRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    return await quiz_service.merge_quizzes(
+        db,
+        target_quiz_id=quiz_id,
+        author_id=current_user.id,
+        source_quiz_ids=body.source_quiz_ids,
+        strategy=body.strategy,
+        deduplicate=body.deduplicate,
+    )
+
+
+@router.get("/{quiz_id}/export/json")
+async def export_quiz_json(
+    quiz_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    return await quiz_service.export_quiz_json(db, quiz_id, current_user.id)
+
+
+@router.get("/{quiz_id}/export/csv")
+async def export_quiz_csv(
+    quiz_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    csv_text = await quiz_service.export_quiz_csv(db, quiz_id, current_user.id)
+    return Response(
+        content=csv_text,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="quiz-{quiz_id}.csv"'},
+    )
