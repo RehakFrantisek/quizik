@@ -24,11 +24,12 @@ class AnswerPayload(BaseModel):
     question_id: uuid.UUID
     response: str | list | dict | None = None
     time_spent_sec: int | None = None
+    risk_bet: int | None = Field(default=None, ge=0, le=20)
 
 
 class SubmitAttemptRequest(BaseModel):
     answers: list[AnswerPayload]
-    minigame_score: int = Field(default=0, ge=0)  # raw tap total from minigames
+    minigame_score: int = Field(default=0, ge=-100000, le=100000)  # raw minigame total (can be negative)
 
 
 class TelemetryPayload(BaseModel):
@@ -81,6 +82,7 @@ async def submit_attempt(
             "question_id": str(a.question_id),
             "response": a.response,
             "time_spent_sec": a.time_spent_sec,
+            "risk_bet": a.risk_bet,
         }
         for a in body.answers
     ]
@@ -92,6 +94,7 @@ async def submit_attempt(
         "max_score": result["attempt"].max_score,
         "percentage": result["attempt"].percentage,
         "minigame_score": result["attempt"].minigame_score,
+        "time_spent_sec": result["attempt"].time_spent_sec,
         "completed_at": result["attempt"].completed_at.isoformat() if result["attempt"].completed_at else None,
         "answer_results": result["answer_results"],
     }
@@ -154,17 +157,23 @@ async def get_leaderboard(
     if not session.leaderboard_enabled:
         return {"leaderboard_enabled": False, "entries": []}
 
-    attempts = await get_leaderboard(db, session.id)
-    entries = [
-        {
-            "rank": i + 1,
-            "participant_name": a.participant_name,
-            "score": a.score,
-            "max_score": a.max_score,
-            "percentage": a.percentage,
-            "time_spent_sec": a.time_spent_sec,
-            "completed_at": a.completed_at.isoformat() if a.completed_at else None,
-        }
-        for i, a in enumerate(attempts)
-    ]
+    attempts = await get_leaderboard(db, session.id, include_in_progress=False)
+    entries = []
+    completed_rank = 0
+    for a in attempts:
+        is_completed = a.status == "completed"
+        if is_completed:
+            completed_rank += 1
+        entries.append(
+            {
+                "rank": completed_rank if is_completed else None,
+                "status": a.status,
+                "participant_name": a.participant_name,
+                "score": a.score,
+                "max_score": a.max_score,
+                "percentage": a.percentage,
+                "time_spent_sec": a.time_spent_sec,
+                "completed_at": a.completed_at.isoformat() if a.completed_at else None,
+            }
+        )
     return {"leaderboard_enabled": True, "entries": entries}

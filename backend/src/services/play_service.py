@@ -65,11 +65,13 @@ async def get_public_session_quiz(db: AsyncSession, session_slug: str) -> dict:
         "title": display_title,
         "description": quiz.description,
         "leaderboard_enabled": session.leaderboard_enabled,
+        "play_mode": getattr(session, "play_mode", "quiz"),
         "allow_repeat": session.allow_repeat,
         "max_repeats": getattr(session, "max_repeats", 0) or 0,
         "show_correct_answer": session.show_correct_answer,
         "gamification_enabled": session.gamification_enabled,
         "minigame_type": session.minigame_type,
+        "minigame_config": getattr(session, "minigame_config", None),
         "minigame_trigger_mode": session.minigame_trigger_mode,
         "minigame_trigger_n": session.minigame_trigger_n,
         "time_limit_sec": quiz.settings.get("time_limit_sec"),
@@ -185,6 +187,28 @@ async def submit_attempt(
     time_total = 0
     answer_results = []
 
+    play_mode = getattr(session, "play_mode", "quiz")
+    if play_mode in {"memory_pairs", "speed_match"}:
+        for ans_data in answers_payload:
+            time_spent = ans_data.get("time_spent_sec")
+            if isinstance(time_spent, int):
+                time_total += time_spent
+        final_score = max(0, min(int(minigame_score), 100))
+        attempt.status = "completed"
+        attempt.score = final_score
+        attempt.max_score = 100
+        attempt.minigame_score = min(minigame_score, 32767)
+        attempt.percentage = float(final_score)
+        attempt.time_spent_sec = min(time_total, 32767) if time_total > 0 else None
+        attempt.completed_at = datetime.utcnow()
+        await db.commit()
+        await db.refresh(attempt)
+        return {"attempt": attempt, "answer_results": []}
+
+    cfg = getattr(session, "minigame_config", None) or {}
+    enabled_minigames = cfg.get("enabled_minigames") if isinstance(cfg, dict) else None
+    risk_reward_enabled = isinstance(enabled_minigames, list) and "risk_reward" in enabled_minigames
+
     for ans_data in answers_payload:
         q_id = str(ans_data.get("question_id", ""))
         question = questions.get(q_id)
@@ -198,6 +222,10 @@ async def submit_attempt(
 
         is_correct, points = evaluate_answer(question, response)
         total_score += points
+        risk_bet_raw = ans_data.get("risk_bet")
+        risk_bet = int(risk_bet_raw) if isinstance(risk_bet_raw, int) else 0
+        if risk_reward_enabled and risk_bet in {5, 10, 20}:
+            total_score += risk_bet if is_correct else -risk_bet
 
         db.add(
             Answer(
@@ -227,9 +255,9 @@ async def submit_attempt(
     final_score = total_score + gamification_bonus
 
     attempt.status = "completed"
-    attempt.score = min(final_score, 32767)
+    attempt.score = max(-32768, min(final_score, 32767))
     attempt.max_score = max_score
-    attempt.minigame_score = min(minigame_score, 32767)
+    attempt.minigame_score = max(-32768, min(minigame_score, 32767))
     attempt.percentage = round(final_score / max_score * 100, 1) if max_score > 0 else 0.0
     attempt.time_spent_sec = min(time_total, 32767)  # SmallInt max
     attempt.completed_at = datetime.utcnow()
