@@ -94,14 +94,15 @@ function getDeviceToken(): string {
   return token;
 }
 
-function pickEnabledMinigame(sessionData: SessionData | null): "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "risk_reward" {
-  const fallback = (sessionData?.minigame_type as "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "risk_reward" | undefined) ?? "tap_sprint";
+function pickEnabledMinigame(sessionData: SessionData | null): "tap_sprint" | "typing_race" | "slider" | "memory_pairs" {
+  const fallbackRaw = (sessionData?.minigame_type as "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "risk_reward" | undefined) ?? "tap_sprint";
+  const fallback = fallbackRaw === "risk_reward" ? "tap_sprint" : fallbackRaw;
   const raw = sessionData?.minigame_config && typeof sessionData.minigame_config === "object"
     ? (sessionData.minigame_config as { enabled_minigames?: unknown }).enabled_minigames
     : null;
   if (!Array.isArray(raw) || raw.length === 0) return fallback;
-  const allowed = raw.filter((x): x is "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "risk_reward" =>
-    typeof x === "string" && ["tap_sprint", "typing_race", "slider", "memory_pairs", "risk_reward"].includes(x));
+  const allowed = raw.filter((x): x is "tap_sprint" | "typing_race" | "slider" | "memory_pairs" =>
+    typeof x === "string" && ["tap_sprint", "typing_race", "slider", "memory_pairs"].includes(x));
   if (allowed.length === 0) return fallback;
   return allowed[Math.floor(Math.random() * allowed.length)];
 }
@@ -142,6 +143,7 @@ export default function PlayPage() {
   const [timers, setTimers] = useState<Record<string, number>>({});
   const [questionStart, setQuestionStart] = useState<number>(Date.now());
   const [answerStreak, setAnswerStreak] = useState(0);
+  const [riskBets, setRiskBets] = useState<Record<string, number>>({});
 
   const [allAnswerResults, setAllAnswerResults] = useState<AnswerResult[]>([]);
   const [result, setResult] = useState<Result | null>(null);
@@ -219,6 +221,7 @@ export default function PlayPage() {
       const data = await res.json();
       setAttemptId(data.attempt_id);
       attemptIdRef.current = data.attempt_id;
+      setRiskBets({});
       setQuestionStart(Date.now());
       // Random mode: roll for Q1
       if ((sessionData?.bonus_unlock_mode ?? "immediate") === "random") {
@@ -320,6 +323,7 @@ export default function PlayPage() {
       question_id: qq.id,
       response: answers[qq.id] ?? null,
       time_spent_sec: finalTimers[qq.id] ?? null,
+      risk_bet: riskBets[qq.id] ?? null,
     }));
     const totalMinigameScore = minigameScores.reduce((sum, s) => sum + s, 0);
     try {
@@ -596,6 +600,7 @@ export default function PlayPage() {
 
   const questions = sessionData!.questions;
   const q = questions[currentIdx];
+  const nextQ = questions[currentIdx + 1];
   const isLast = currentIdx === questions.length - 1;
   const currentAnswer = answers[q.id];
   const answeredCount = Object.keys(timers).length;
@@ -617,6 +622,10 @@ export default function PlayPage() {
     && currentAnswer != null && currentAnswer !== "" && !(Array.isArray(currentAnswer) && currentAnswer.length === 0);
 
   const visibleOptions = q.options.filter((opt) => !eliminatedOptions.has(opt.id));
+  const enabledMinigames = Array.isArray(sessionData?.minigame_config?.enabled_minigames)
+    ? (sessionData?.minigame_config?.enabled_minigames as string[])
+    : [];
+  const riskRewardEnabled = sessionData?.play_mode === "quiz" && enabledMinigames.includes("risk_reward");
 
   // Unlock hint text
   const unlockHint = (() => {
@@ -668,6 +677,27 @@ export default function PlayPage() {
                 ✏️ {endCorrectionUsed ? t("play.bonusUsed") : t("play.bonusEndCorrectionReady")}
               </span>
             )}
+          </div>
+        )}
+
+        {riskRewardEnabled && nextQ && (
+          <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+            <p className="font-bold mb-2">🎲 Risk / Reward – sázka na další otázku</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              {[5, 10, 20].map((stake) => (
+                <button
+                  key={stake}
+                  type="button"
+                  onClick={() => setRiskBets((prev) => ({ ...prev, [nextQ.id]: stake }))}
+                  className={`px-3 py-1.5 rounded-lg border font-semibold ${riskBets[nextQ.id] === stake ? "bg-amber-500 border-amber-600 text-white" : "bg-white border-amber-300 text-amber-700 hover:bg-amber-100"}`}
+                >
+                  {stake}
+                </button>
+              ))}
+              <span className="text-amber-700">
+                {riskBets[nextQ.id] ? `Další otázka: vsazeno ${riskBets[nextQ.id]} b` : "Vyber sázku 5 / 10 / 20"}
+              </span>
+            </div>
           </div>
         )}
 

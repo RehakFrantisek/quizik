@@ -24,11 +24,12 @@ class AnswerPayload(BaseModel):
     question_id: uuid.UUID
     response: str | list | dict | None = None
     time_spent_sec: int | None = None
+    risk_bet: int | None = Field(default=None, ge=0, le=20)
 
 
 class SubmitAttemptRequest(BaseModel):
     answers: list[AnswerPayload]
-    minigame_score: int = Field(default=0, ge=0)  # raw tap total from minigames
+    minigame_score: int = Field(default=0, ge=-100000, le=100000)  # raw minigame total (can be negative)
 
 
 class TelemetryPayload(BaseModel):
@@ -81,6 +82,7 @@ async def submit_attempt(
             "question_id": str(a.question_id),
             "response": a.response,
             "time_spent_sec": a.time_spent_sec,
+            "risk_bet": a.risk_bet,
         }
         for a in body.answers
     ]
