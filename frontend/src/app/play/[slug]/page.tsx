@@ -602,6 +602,7 @@ export default function PlayPage() {
 
   const questions = sessionData!.questions;
   const q = questions[currentIdx];
+  const nextQ = questions[currentIdx + 1];
   const isLast = currentIdx === questions.length - 1;
   const currentAnswer = answers[q.id];
   const answeredCount = Object.keys(timers).length;
@@ -623,6 +624,10 @@ export default function PlayPage() {
     && currentAnswer != null && currentAnswer !== "" && !(Array.isArray(currentAnswer) && currentAnswer.length === 0);
 
   const visibleOptions = q.options.filter((opt) => !eliminatedOptions.has(opt.id));
+  const enabledMinigames = Array.isArray(sessionData?.minigame_config?.enabled_minigames)
+    ? (sessionData?.minigame_config?.enabled_minigames as string[])
+    : [];
+  const riskRewardEnabled = sessionData?.play_mode === "quiz" && enabledMinigames.includes("risk_reward");
 
   // Unlock hint text
   const unlockHint = (() => {
