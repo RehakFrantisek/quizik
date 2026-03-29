@@ -94,15 +94,14 @@ function getDeviceToken(): string {
   return token;
 }
 
-function pickEnabledMinigame(sessionData: SessionData | null): "tap_sprint" | "typing_race" | "slider" | "memory_pairs" {
-  const fallbackRaw = (sessionData?.minigame_type as "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "risk_reward" | undefined) ?? "tap_sprint";
-  const fallback = fallbackRaw === "risk_reward" ? "tap_sprint" : fallbackRaw;
+function pickEnabledMinigame(sessionData: SessionData | null): "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "risk_reward" {
+  const fallback = (sessionData?.minigame_type as "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "risk_reward" | undefined) ?? "tap_sprint";
   const raw = sessionData?.minigame_config && typeof sessionData.minigame_config === "object"
     ? (sessionData.minigame_config as { enabled_minigames?: unknown }).enabled_minigames
     : null;
   if (!Array.isArray(raw) || raw.length === 0) return fallback;
-  const allowed = raw.filter((x): x is "tap_sprint" | "typing_race" | "slider" | "memory_pairs" =>
-    typeof x === "string" && ["tap_sprint", "typing_race", "slider", "memory_pairs"].includes(x));
+  const allowed = raw.filter((x): x is "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "risk_reward" =>
+    typeof x === "string" && ["tap_sprint", "typing_race", "slider", "memory_pairs", "risk_reward"].includes(x));
   if (allowed.length === 0) return fallback;
   return allowed[Math.floor(Math.random() * allowed.length)];
 }
@@ -587,8 +586,11 @@ export default function PlayPage() {
         type={pickEnabledMinigame(sessionData)}
         config={sessionData?.minigame_config ?? null}
         durationSec={5}
-        onComplete={(score) => {
+        onComplete={(score, meta) => {
           setMinigameScores((prev) => [...prev, score]);
+          if (meta?.riskBet && sessionData?.questions[currentIdx]?.id) {
+            setRiskBets((prev) => ({ ...prev, [sessionData.questions[currentIdx].id]: meta.riskBet }));
+          }
           setPhase("quiz");
           setQuestionStart(Date.now());
         }}
@@ -677,27 +679,6 @@ export default function PlayPage() {
                 ✏️ {endCorrectionUsed ? t("play.bonusUsed") : t("play.bonusEndCorrectionReady")}
               </span>
             )}
-          </div>
-        )}
-
-        {riskRewardEnabled && nextQ && (
-          <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-            <p className="font-bold mb-2">🎲 Risk / Reward – sázka na další otázku</p>
-            <div className="flex items-center gap-2 flex-wrap">
-              {[5, 10, 20].map((stake) => (
-                <button
-                  key={stake}
-                  type="button"
-                  onClick={() => setRiskBets((prev) => ({ ...prev, [nextQ.id]: stake }))}
-                  className={`px-3 py-1.5 rounded-lg border font-semibold ${riskBets[nextQ.id] === stake ? "bg-amber-500 border-amber-600 text-white" : "bg-white border-amber-300 text-amber-700 hover:bg-amber-100"}`}
-                >
-                  {stake}
-                </button>
-              ))}
-              <span className="text-amber-700">
-                {riskBets[nextQ.id] ? `Další otázka: vsazeno ${riskBets[nextQ.id]} b` : "Vyber sázku 5 / 10 / 20"}
-              </span>
-            </div>
           </div>
         )}
 

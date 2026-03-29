@@ -7,7 +7,7 @@ import { SliderGame } from "./SliderGame";
 import { useLang } from "@/contexts/LangContext";
 
 interface Props {
-  onComplete: (score: number, meta?: { elapsedSec?: number }) => void;
+  onComplete: (score: number, meta?: { elapsedSec?: number; riskBet?: number }) => void;
   type?: "tap_sprint" | "typing_race" | "slider" | "memory_pairs" | "speed_match" | "risk_reward" | "random";
   durationSec?: number;
   allowSkip?: boolean;
@@ -209,30 +209,30 @@ function SpeedMatch({
   );
 }
 
-function RiskReward({ onComplete }: { onComplete: (score: number, meta?: { elapsedSec?: number }) => void }) {
-  const [round, setRound] = useState(1);
-  const [score, setScore] = useState(50);
-  const maxRounds = 5;
-  const finish = (finalScore: number) => onComplete(Math.max(0, Math.min(100, finalScore)));
-  const play = (stake: number) => {
-    const success = Math.random() < 0.55;
-    const next = success ? score + stake : score - stake;
-    if (round >= maxRounds) return finish(next);
-    setScore(next);
-    setRound((r) => r + 1);
-  };
+function RiskReward({ onComplete }: { onComplete: (score: number, meta?: { elapsedSec?: number; riskBet?: number }) => void }) {
+  const [selectedBet, setSelectedBet] = useState<number | null>(null);
   return (
     <div className="bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-900 rounded-3xl p-5 shadow-lg max-w-md mx-auto text-center">
       <p className="text-sm font-bold text-amber-700 dark:text-amber-300 mb-1">🎲 Risk / Reward Quiz</p>
-      <p className="text-xs text-gray-500 mb-3">Kolo {round}/{maxRounds}</p>
-      <p className="text-3xl font-black text-gray-800 dark:text-gray-100 mb-3">{score}</p>
+      <p className="text-xs text-gray-500 mb-3">Zvol sázku na příští otázku.</p>
       <div className="grid grid-cols-3 gap-2">
         {[5, 10, 20].map((stake) => (
-          <button key={stake} onClick={() => play(stake)} className="px-3 py-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 font-semibold">
+          <button
+            key={stake}
+            onClick={() => setSelectedBet(stake)}
+            className={`px-3 py-2 rounded-lg border font-semibold ${selectedBet === stake ? "bg-amber-500 border-amber-600 text-white" : "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"}`}
+          >
             Vsadit {stake}
           </button>
         ))}
       </div>
+      <button
+        onClick={() => onComplete(0, { riskBet: selectedBet ?? 0 })}
+        className="mt-3 px-4 py-2 rounded-lg bg-amber-600 text-white font-semibold disabled:opacity-50"
+        disabled={selectedBet == null}
+      >
+        Potvrdit sázku
+      </button>
     </div>
   );
 }
