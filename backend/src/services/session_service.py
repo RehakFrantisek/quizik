@@ -33,6 +33,7 @@ async def clone_quiz(db: AsyncSession, quiz_id: uuid.UUID, new_owner: User, is_i
         author_id=new_owner.id,
         title=f"Copy of {source.title}",
         description=source.description,
+        cover_image_url=source.cover_image_url,
         settings=dict(source.settings),
         clone_of_id=source.id,
         is_imported=is_imported,
