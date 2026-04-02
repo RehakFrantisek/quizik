@@ -13,6 +13,7 @@ class QuizSettings(BaseModel):
     passing_score_pct: int = Field(default=70, ge=0, le=100)
     allow_anonymous: bool = True
     max_attempts_per_ip: int = 5
+    cover_image_url: str | None = Field(default=None, max_length=1024)
 
 class QuizBase(BaseModel):
     title: str = Field(max_length=255)

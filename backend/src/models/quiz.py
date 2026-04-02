@@ -31,6 +31,7 @@ class Quiz(Base):
             "passing_score_pct": 70,
             "allow_anonymous": True,
             "max_attempts_per_ip": 5,
+            "cover_image_url": None,
         },
     )
 

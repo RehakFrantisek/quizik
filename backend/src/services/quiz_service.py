@@ -24,6 +24,7 @@ async def create_quiz(db: AsyncSession, author_id: uuid.UUID, quiz_in: QuizCreat
         "passing_score_pct": 70,
         "allow_anonymous": True,
         "max_attempts_per_ip": 5,
+        "cover_image_url": None,
     }
     settings = quiz_in.settings.model_dump() if quiz_in.settings else default_settings
     db_quiz = Quiz(

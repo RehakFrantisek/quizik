@@ -33,6 +33,9 @@ interface Quiz {
   clone_of_id?: string | null;
   is_imported?: boolean;
   questions?: Array<{ body?: string }>;
+  settings?: {
+    cover_image_url?: string | null;
+  };
 }
 
 export default function QuizzesDashboard() {
@@ -53,6 +56,7 @@ export default function QuizzesDashboard() {
   const [showNewModal, setShowNewModal] = useState(false);
   const [showBlankForm, setShowBlankForm] = useState(false);
   const [newQuizTitle, setNewQuizTitle] = useState("");
+  const [newQuizCoverUrl, setNewQuizCoverUrl] = useState("");
 
   const [showImportLink, setShowImportLink] = useState(false);
   const [importSlug, setImportSlug] = useState("");
@@ -113,8 +117,14 @@ export default function QuizzesDashboard() {
     setShowNewModal(false);
     setShowBlankForm(false);
     setNewQuizTitle("");
+    setNewQuizCoverUrl("");
     try {
-      const data = await apiClient.post("/quizzes", { title });
+      const data = await apiClient.post("/quizzes", {
+        title,
+        settings: {
+          cover_image_url: newQuizCoverUrl.trim() || null,
+        },
+      });
       router.push(`/quizzes/${data.id}/edit`);
     } catch (err) {
       console.error("Failed to create quiz", err);
@@ -231,8 +241,13 @@ export default function QuizzesDashboard() {
     draft: "bg-amber-100 text-amber-700 border-amber-200",
   };
 
+  const totalQuizzes = quizzes.length;
+  const draftCount = quizzes.filter((q) => q.status === "draft").length;
+  const publishedCount = quizzes.filter((q) => q.status === "published").length;
+  const importedCount = quizzes.filter((q) => q.is_imported).length;
+
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-8">
+    <div className="max-w-7xl mx-auto p-4 md:p-8 lg:p-10">
       {/* Delete confirmation modal */}
       {deletingId && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
@@ -280,6 +295,13 @@ export default function QuizzesDashboard() {
                     className="w-full border border-violet-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-400 outline-none mb-2"
                     autoFocus
                     required
+                  />
+                  <input
+                    type="url"
+                    value={newQuizCoverUrl}
+                    onChange={(e) => setNewQuizCoverUrl(e.target.value)}
+                    placeholder="https://... (volitelný cover obrázek)"
+                    className="w-full border border-violet-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-300 outline-none mb-2"
                   />
                   <div className="flex gap-2">
                     <button type="submit" className="flex-1 bg-violet-600 text-white py-2 rounded-lg font-semibold hover:bg-violet-700 text-sm transition-colors">
@@ -491,47 +513,60 @@ export default function QuizzesDashboard() {
       )}
 
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-wrap justify-between items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-black text-gray-800 flex items-center gap-3">
-            <div className="bg-gradient-to-br from-violet-500 to-indigo-500 p-2.5 rounded-xl shadow-md">
+          <h1 className="text-4xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
+            <div className="bg-gradient-to-br from-indigo-600 to-purple-500 p-3 rounded-2xl shadow-lg shadow-indigo-500/20">
               <BookOpen size={22} className="text-white" />
             </div>
             {t("quiz.myQuizzes")}
           </h1>
-          <p className="text-sm text-gray-500 mt-1.5 ml-14">
+          <p className="text-sm text-slate-500 mt-1.5 ml-16 font-medium">
             {user.display_name || user.email} · {quizzes.length} {quizzes.length === 1 ? "quiz" : "kvízů"}
           </p>
         </div>
         <button onClick={() => setShowNewModal(true)}
-          className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-500 text-white px-4 py-2.5 rounded-xl shadow-md hover:opacity-90 transition-opacity font-semibold whitespace-nowrap">
+          className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-500 text-white px-5 py-3 rounded-2xl shadow-lg shadow-indigo-500/25 hover:opacity-90 transition-all font-semibold whitespace-nowrap active:scale-95">
           <PlusCircle size={18} />
-          <span className="hidden sm:inline">{t("quiz.newQuiz")}</span>
+          <span>{t("quiz.newQuiz")}</span>
         </button>
       </div>
 
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div className="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm"><p className="text-xs text-slate-500 font-semibold uppercase">Total Quizzes</p><p className="text-3xl font-black text-indigo-600 mt-1">{totalQuizzes}</p></div>
+        <div className="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm"><p className="text-xs text-slate-500 font-semibold uppercase">Drafts</p><p className="text-3xl font-black text-blue-600 mt-1">{draftCount}</p></div>
+        <div className="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm"><p className="text-xs text-slate-500 font-semibold uppercase">Published</p><p className="text-3xl font-black text-fuchsia-600 mt-1">{publishedCount}</p></div>
+        <div className="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm"><p className="text-xs text-slate-500 font-semibold uppercase">Imported</p><p className="text-3xl font-black text-slate-800 mt-1">{importedCount}</p></div>
+      </div>
+
       {quizzes.length > 0 && (
-        <div className="flex gap-2 mb-5 flex-wrap">
-          <div className="relative flex-1 min-w-[180px]">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-6">
+          <div className="inline-flex rounded-2xl bg-white border border-slate-200 p-1 flex-wrap">
+            {[
+              { key: "all", label: t("status.all") },
+              { key: "published", label: t("status.published") },
+              { key: "draft", label: t("status.draft") },
+              { key: "archived", label: t("status.archived") },
+            ].map((item) => (
+              <button
+                key={item.key}
+                onClick={() => setStatusFilter(item.key)}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${statusFilter === item.key ? "bg-indigo-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <div className="relative w-full lg:w-[360px]">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("quiz.searchPlaceholder")}
-              className="w-full pl-9 pr-3 border border-gray-200 rounded-xl py-2 text-sm outline-none focus:ring-2 focus:ring-violet-400 bg-white"
+              className="w-full pl-9 pr-3 border border-slate-200 rounded-2xl py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
             />
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-400 bg-white"
-          >
-            <option value="all">{t("status.all")}</option>
-            <option value="draft">{t("status.draft")}</option>
-            <option value="published">{t("status.published")}</option>
-            <option value="archived">{t("status.archived")}</option>
-          </select>
         </div>
       )}
 
@@ -552,13 +587,21 @@ export default function QuizzesDashboard() {
           <div className="text-center text-gray-400 py-8">{t("quiz.noQuizzesFilter")}</div>
         );
         return (
-          <div className="grid gap-3">
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
             {filtered.map((quiz) => (
               <div key={quiz.id}
-                className="bg-white border border-gray-100 p-4 rounded-2xl flex justify-between items-center shadow-sm hover:shadow-md hover:border-violet-200 transition-all group">
+                className="bg-white border border-slate-200 p-4 rounded-3xl flex flex-col shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
+                <div className="h-40 rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-900 to-cyan-900 mb-4 relative overflow-hidden">
+                  {quiz.settings?.cover_image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={quiz.settings.cover_image_url} alt={quiz.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(168,85,247,0.35),transparent_55%)]" />
+                  )}
+                </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <h3 className="text-lg font-bold text-gray-800 group-hover:text-violet-700 transition-colors">{quiz.title}</h3>
+                  <div className="flex items-center gap-2 flex-wrap mb-2">
+                    <h3 className="text-2xl font-bold text-slate-900 group-hover:text-indigo-700 transition-colors tracking-tight">{quiz.title}</h3>
                     <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${statusColors[quiz.status] || statusColors.draft}`}>
                       {t(`status.${quiz.status}`) || quiz.status}
                     </span>
@@ -573,22 +616,22 @@ export default function QuizzesDashboard() {
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-400">
+                  <p className="text-sm text-slate-500 font-medium mb-4">
                     {questionCountLabel(lang, quiz.questions?.length ?? 0)}
                   </p>
                 </div>
-                <div className="ml-2 shrink-0">
-                  <div className="flex items-center gap-1.5 flex-wrap justify-end rounded-2xl border border-gray-200 bg-gray-50/80 p-1.5">
+                <div className="mt-auto">
+                  <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-2">
                   {quiz.status === "published" && quiz.share_slug && (
                     <button onClick={() => copyShareLink(quiz.share_slug!)}
-                      className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 bg-white border border-gray-200 px-2.5 py-1.5 rounded-xl transition-all"
+                      className="flex items-center justify-center gap-1.5 text-sm text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 bg-white border border-slate-200 px-2.5 py-2 rounded-xl transition-all"
                       title={copiedSlug === quiz.share_slug ? t("quiz.copied") : t("quiz.share")}>
                       <Share2 size={14} />
                       <span className="hidden sm:inline">{copiedSlug === quiz.share_slug ? t("quiz.copied") : t("quiz.share")}</span>
                     </button>
                   )}
                   <Link href={`/quizzes/${quiz.id}/edit`}
-                    className="flex items-center gap-1.5 text-violet-600 hover:text-white hover:bg-violet-500 bg-white border border-violet-200 text-sm px-2.5 py-1.5 rounded-xl transition-all"
+                    className="flex items-center justify-center gap-1.5 text-indigo-600 hover:text-white hover:bg-indigo-500 bg-white border border-indigo-200 text-sm px-2.5 py-2 rounded-xl transition-all"
                     title={t("common.edit")}>
                     <Edit size={14} />
                     <span className="hidden sm:inline">{t("common.edit")}</span>
@@ -596,7 +639,7 @@ export default function QuizzesDashboard() {
                   <button
                     onClick={() => setCopyActionQuizId(quiz.id)}
                     disabled={cloningId === quiz.id}
-                    className="flex items-center gap-1.5 text-indigo-700 hover:text-white hover:bg-indigo-500 bg-white border border-indigo-200 text-sm px-2.5 py-1.5 rounded-xl transition-all disabled:opacity-50"
+                    className="flex items-center justify-center gap-1.5 text-violet-700 hover:text-white hover:bg-violet-500 bg-white border border-violet-200 text-sm px-2.5 py-2 rounded-xl transition-all disabled:opacity-50"
                     title="Kopírovat / Sloučit"
                   >
                     <ArrowUpFromLine size={14} />
@@ -604,14 +647,14 @@ export default function QuizzesDashboard() {
                   </button>
                   <button
                     onClick={() => setExportQuizId(quiz.id)}
-                    className="flex items-center gap-1.5 text-gray-700 hover:text-white hover:bg-gray-600 bg-white border border-gray-200 text-sm px-2.5 py-1.5 rounded-xl transition-all"
+                    className="flex items-center justify-center gap-1.5 text-slate-700 hover:text-white hover:bg-slate-600 bg-white border border-slate-200 text-sm px-2.5 py-2 rounded-xl transition-all"
                     title="Export"
                   >
                     <Download size={14} />
                     <span className="hidden sm:inline">Export</span>
                   </button>
                   <button onClick={() => setDeletingId(quiz.id)}
-                    className="flex items-center gap-1.5 text-red-400 hover:text-white hover:bg-red-500 bg-white border border-red-200 text-sm px-3 py-1.5 rounded-xl transition-all">
+                    className="flex items-center justify-center gap-1.5 text-red-500 hover:text-white hover:bg-red-500 bg-white border border-red-200 text-sm px-3 py-2 rounded-xl transition-all">
                     <Trash2 size={14} />
                   </button>
                   </div>
