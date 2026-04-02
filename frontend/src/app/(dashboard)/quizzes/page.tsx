@@ -57,6 +57,7 @@ export default function QuizzesDashboard() {
   const [showBlankForm, setShowBlankForm] = useState(false);
   const [newQuizTitle, setNewQuizTitle] = useState("");
   const [newQuizCoverUrl, setNewQuizCoverUrl] = useState("");
+  const [quizCoverMap, setQuizCoverMap] = useState<Record<string, string>>({});
 
   const [showImportLink, setShowImportLink] = useState(false);
   const [importSlug, setImportSlug] = useState("");
@@ -100,6 +101,20 @@ export default function QuizzesDashboard() {
     }
   }, [user, searchParams]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem("quizik_quiz_cover_map");
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        setQuizCoverMap(parsed as Record<string, string>);
+      }
+    } catch {
+      // ignore malformed local data
+    }
+  }, []);
+
   const loadQuizzes = async () => {
     try {
       const data = await apiClient.get("/quizzes");
@@ -121,10 +136,14 @@ export default function QuizzesDashboard() {
     try {
       const data = await apiClient.post("/quizzes", {
         title,
-        settings: {
-          cover_image_url: newQuizCoverUrl.trim() || null,
-        },
       });
+      if (newQuizCoverUrl.trim()) {
+        const nextMap = { ...quizCoverMap, [data.id]: newQuizCoverUrl.trim() };
+        setQuizCoverMap(nextMap);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("quizik_quiz_cover_map", JSON.stringify(nextMap));
+        }
+      }
       router.push(`/quizzes/${data.id}/edit`);
     } catch (err) {
       console.error("Failed to create quiz", err);
@@ -592,9 +611,9 @@ export default function QuizzesDashboard() {
               <div key={quiz.id}
                 className="bg-white border border-slate-200 p-4 rounded-3xl flex flex-col shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
                 <div className="h-40 rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-900 to-cyan-900 mb-4 relative overflow-hidden">
-                  {quiz.settings?.cover_image_url ? (
+                  {quizCoverMap[quiz.id] ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={quiz.settings.cover_image_url} alt={quiz.title} className="w-full h-full object-cover" />
+                    <img src={quizCoverMap[quiz.id]} alt={quiz.title} className="w-full h-full object-cover" />
                   ) : (
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(168,85,247,0.35),transparent_55%)]" />
                   )}
