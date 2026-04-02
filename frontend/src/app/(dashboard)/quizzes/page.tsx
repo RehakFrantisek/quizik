@@ -33,7 +33,9 @@ interface Quiz {
   clone_of_id?: string | null;
   is_imported?: boolean;
   questions?: Array<{ body?: string }>;
-  cover_image_url?: string | null;
+  settings?: {
+    cover_image_url?: string | null;
+  };
 }
 
 export default function QuizzesDashboard() {
@@ -119,7 +121,9 @@ export default function QuizzesDashboard() {
     try {
       const data = await apiClient.post("/quizzes", {
         title,
-        cover_image_url: newQuizCoverUrl.trim() || null,
+        settings: {
+          cover_image_url: newQuizCoverUrl.trim() || null,
+        },
       });
       router.push(`/quizzes/${data.id}/edit`);
     } catch (err) {
@@ -588,9 +592,9 @@ export default function QuizzesDashboard() {
               <div key={quiz.id}
                 className="bg-white border border-slate-200 p-4 rounded-3xl flex flex-col shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
                 <div className="h-40 rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-900 to-cyan-900 mb-4 relative overflow-hidden">
-                  {quiz.cover_image_url ? (
+                  {quiz.settings?.cover_image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={quiz.cover_image_url} alt={quiz.title} className="w-full h-full object-cover" />
+                    <img src={quiz.settings.cover_image_url} alt={quiz.title} className="w-full h-full object-cover" />
                   ) : (
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(168,85,247,0.35),transparent_55%)]" />
                   )}
