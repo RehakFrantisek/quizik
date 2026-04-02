@@ -17,6 +17,7 @@ class Quiz(Base):
     author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     title: Mapped[str] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text)
+    cover_image_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     share_slug: Mapped[str | None] = mapped_column(String(12), unique=True, index=True)
     status: Mapped[str] = mapped_column(String(50), default="draft")  # draft, published, archived
 
@@ -31,6 +32,7 @@ class Quiz(Base):
             "passing_score_pct": 70,
             "allow_anonymous": True,
             "max_attempts_per_ip": 5,
+            "cover_image_url": None,
         },
     )
 

@@ -33,6 +33,9 @@ interface Quiz {
   clone_of_id?: string | null;
   is_imported?: boolean;
   questions?: Array<{ body?: string }>;
+  settings?: {
+    cover_image_url?: string | null;
+  };
 }
 
 export default function QuizzesDashboard() {
