@@ -303,6 +303,10 @@ export default function SessionsPage() {
   });
 
   const publishedQuizzes = quizzes.filter((q) => q.status === "published");
+  const totalParticipants = sessions.reduce((acc, item) => acc + (item.attempt_count || 0), 0);
+  const activeCount = sessions.filter((item) => item.status === "active").length;
+  const avgAttempts = sessions.length ? Math.round(totalParticipants / sessions.length) : 0;
+
   const isMemoryMode = form.play_mode === "memory_pairs" || form.play_mode === "speed_match";
   const enabledPairs = memoryPairs.filter((p) => p.enabled && p.front.trim() && p.back.trim());
   const enabledPairCount = enabledPairs.length;
@@ -338,7 +342,7 @@ export default function SessionsPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-8">
+    <div className="max-w-7xl mx-auto p-4 md:p-8 lg:p-10">
       {/* Delete confirmation modal */}
       {deletingId && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
@@ -369,14 +373,23 @@ export default function SessionsPage() {
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">{t("sessions.title")}</h1>
+      <div className="flex flex-wrap justify-between items-center mb-6 gap-3">
+        <div>
+          <h1 className="text-4xl font-black tracking-tight text-slate-900">{t("sessions.title")}</h1>
+          <p className="text-sm text-slate-500 font-medium mt-1">Manage your active quiz environments and realtime engagement.</p>
+        </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700 whitespace-nowrap"
+          className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-500 text-white px-5 py-3 rounded-2xl shadow-lg shadow-indigo-500/20 hover:opacity-90 whitespace-nowrap active:scale-95"
         >
-          <Plus size={18} /> <span className="hidden sm:inline">{t("sessions.newSession")}</span>
+          <Plus size={18} /> <span>{t("sessions.newSession")}</span>
         </button>
+      </div>
+
+      <div className="grid md:grid-cols-3 gap-4 mb-6">
+        <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm"><p className="text-xs uppercase font-semibold text-slate-500">Total participants</p><p className="text-4xl font-black text-indigo-600 mt-1">{totalParticipants}</p></div>
+        <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm"><p className="text-xs uppercase font-semibold text-slate-500">Active sessions</p><p className="text-4xl font-black text-blue-600 mt-1">{activeCount}</p></div>
+        <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm"><p className="text-xs uppercase font-semibold text-slate-500">Avg attempts</p><p className="text-4xl font-black text-slate-900 mt-1">{avgAttempts}</p></div>
       </div>
 
       {/* Create session form */}
@@ -395,7 +408,7 @@ export default function SessionsPage() {
                 value={form.quiz_id}
                 onChange={(e) => setForm({ ...form, quiz_id: e.target.value })}
                 required
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
               >
                 <option value="">{t("sessions.quizTemplatePlaceholder")}</option>
                 {publishedQuizzes.map((q) => (
@@ -414,18 +427,18 @@ export default function SessionsPage() {
                 type="text"
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
                 placeholder={t("session.titlePlaceholder")}
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">{t("sessions.opensAt")} <span className="text-gray-400 font-normal">{t("common.optional")}</span></label>
-                <input type="datetime-local" value={form.starts_at} onChange={(e) => setForm({ ...form, starts_at: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
+                <input type="datetime-local" value={form.starts_at} onChange={(e) => setForm({ ...form, starts_at: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">{t("sessions.closesAt")} <span className="text-gray-400 font-normal">{t("common.optional")}</span></label>
-                <input type="datetime-local" value={form.ends_at} onChange={(e) => setForm({ ...form, ends_at: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
+                <input type="datetime-local" value={form.ends_at} onChange={(e) => setForm({ ...form, ends_at: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
               </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pt-1">
@@ -451,7 +464,7 @@ export default function SessionsPage() {
               <select
                 value={form.play_mode}
                 onChange={(e) => setForm({ ...form, play_mode: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="quiz">📝 Klasický kvíz</option>
                 <option value="memory_pairs">🧠 Procvičování: Pexeso</option>
@@ -470,7 +483,7 @@ export default function SessionsPage() {
                     <label className="block text-sm font-semibold text-gray-700">{t("sessions.maxRepeats")}</label>
                     <p className="text-xs text-gray-400">{t("sessions.maxRepeatsHint")}</p>
                   </div>
-                  <input type="number" min={0} max={1000} value={form.max_repeats} onChange={(e) => setForm({ ...form, max_repeats: Math.max(0, parseInt(e.target.value) || 0) })} className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm text-center outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input type="number" min={0} max={1000} value={form.max_repeats} onChange={(e) => setForm({ ...form, max_repeats: Math.max(0, parseInt(e.target.value) || 0) })} className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
               </div>
               {!isMemoryMode && (
@@ -480,7 +493,7 @@ export default function SessionsPage() {
                       <label className="block text-sm font-semibold text-gray-700">{t("sessions.questionCount")}</label>
                       <p className="text-xs text-gray-400">{t("sessions.questionCountHint")}</p>
                     </div>
-                    <input type="number" min={0} value={form.question_count} onChange={(e) => setForm({ ...form, question_count: Math.max(0, parseInt(e.target.value) || 0) })} className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm text-center outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input type="number" min={0} value={form.question_count} onChange={(e) => setForm({ ...form, question_count: Math.max(0, parseInt(e.target.value) || 0) })} className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500" />
                   </div>
                 </div>
               )}
@@ -803,7 +816,7 @@ export default function SessionsPage() {
 
       {/* Search + filter */}
       {sessions.length > 0 && (
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-2 mb-5">
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
@@ -811,13 +824,13 @@ export default function SessionsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("sessions.searchPlaceholder")}
-              className="w-full border border-gray-200 rounded-lg pl-9 pr-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full border border-gray-200 rounded-lg pl-9 pr-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="all">{t("status.all")}</option>
             <option value="scheduled">{t("status.scheduled")}</option>
@@ -835,13 +848,13 @@ export default function SessionsPage() {
       ) : filtered.length === 0 ? (
         <div className="text-center text-gray-400 py-8">{t("sessions.noSessions")}</div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid lg:grid-cols-2 gap-5">
           {filtered.map((s) => (
-            <div key={s.id} className="border p-4 rounded-lg bg-white shadow-sm">
+            <div key={s.id} className="border border-slate-200 p-5 rounded-3xl bg-white shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all">
               <div className="flex justify-between items-start">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <h3 className="text-lg font-semibold">{s.title || quizMap[s.quiz_id]?.title || "(untitled)"}</h3>
+                    <h3 className="text-2xl font-bold tracking-tight text-slate-900">{s.title || quizMap[s.quiz_id]?.title || "(untitled)"}</h3>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-bold border ${s.status === "active" ? "bg-green-50 text-green-700 border-green-200" : s.status === "scheduled" ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-gray-100 text-gray-600 border-gray-200"}`}>
                       {t(`status.${s.status}`) || s.status}
                     </span>
@@ -877,20 +890,20 @@ export default function SessionsPage() {
                   </p>
                 </div>
                 <div className="grid grid-cols-2 sm:flex gap-1.5 sm:gap-2 ml-2 shrink-0">
-                  <a href={`/play/${s.session_slug}`} target="_blank" rel="noopener" className="flex items-center gap-1 text-sm text-green-600 bg-green-50 border border-green-200 px-2.5 py-1.5 rounded hover:bg-green-100" title={t("common.open")}>
+                  <a href={`/play/${s.session_slug}`} target="_blank" rel="noopener" className="flex items-center gap-1 text-sm text-green-600 bg-green-50 border border-green-200 px-3 py-2 rounded-xl hover:bg-green-100" title={t("common.open")}>
                     <ExternalLink size={13} /> <span className="hidden sm:inline">{t("common.open")}</span>
                   </a>
                   {s.leaderboard_enabled && (
-                    <a href={`/play/${s.session_slug}/leaderboard`} target="_blank" rel="noopener" className="flex items-center gap-1 text-sm text-yellow-600 bg-yellow-50 border border-yellow-200 px-2.5 py-1.5 rounded hover:bg-yellow-100" title={t("session.viewLeaderboard")}>
+                    <a href={`/play/${s.session_slug}/leaderboard`} target="_blank" rel="noopener" className="flex items-center gap-1 text-sm text-yellow-600 bg-yellow-50 border border-yellow-200 px-3 py-2 rounded-xl hover:bg-yellow-100" title={t("session.viewLeaderboard")}>
                       <Trophy size={13} /> <span className="hidden sm:inline">{t("session.viewLeaderboard")}</span>
                     </a>
                   )}
-                  <Link href={`/sessions/${s.id}`} className="flex items-center gap-1.5 text-sm text-blue-600 bg-blue-50 border border-blue-200 px-2.5 py-1.5 rounded hover:bg-blue-100" title={t("common.edit")}>
+                  <Link href={`/sessions/${s.id}`} className="flex items-center gap-1.5 text-sm text-blue-600 bg-blue-50 border border-blue-200 px-3 py-2 rounded-xl hover:bg-blue-100" title={t("common.edit")}>
                     <Edit2 size={13} /> <span className="hidden sm:inline">{t("common.edit")}</span>
                   </Link>
                   <button
                     onClick={() => setDeletingId(s.id)}
-                    className="flex items-center gap-1 text-sm text-red-500 bg-red-50 border border-red-200 px-2.5 py-1.5 rounded hover:bg-red-100"
+                    className="flex items-center gap-1 text-sm text-red-500 bg-red-50 border border-red-200 px-3 py-2 rounded-xl hover:bg-red-100"
                     title="Delete session"
                   >
                     <Trash2 size={13} />
