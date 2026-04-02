@@ -74,6 +74,7 @@ export default function SessionsPage() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
@@ -123,7 +124,7 @@ export default function SessionsPage() {
 
   useEffect(() => {
     if (user) {
-      Promise.all([loadSessions(), loadQuizzes(), loadGroups()]).finally(() => setFetching(false));
+      Promise.allSettled([loadSessions(), loadQuizzes(), loadGroups()]).finally(() => setFetching(false));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -169,13 +170,25 @@ export default function SessionsPage() {
   }, []);
 
   const loadSessions = async () => {
-    const data = await apiClient.get("/sessions");
-    setSessions(Array.isArray(data) ? data : []);
+    try {
+      const data = await apiClient.get("/sessions");
+      setSessions(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Failed to load sessions", err);
+      setSessions([]);
+      setLoadError("Nepodařilo se načíst sessiony. Zkuste obnovit stránku.");
+    }
   };
 
   const loadQuizzes = async () => {
-    const data = await apiClient.get("/quizzes");
-    setQuizzes(Array.isArray(data) ? data : []);
+    try {
+      const data = await apiClient.get("/quizzes");
+      setQuizzes(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Failed to load quizzes", err);
+      setQuizzes([]);
+      setLoadError("Nepodařilo se načíst kvízy. Zkuste obnovit stránku.");
+    }
   };
 
   const loadGroups = async () => {
@@ -400,6 +413,11 @@ export default function SessionsPage() {
         <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm"><p className="text-xs uppercase font-semibold text-slate-500">Active sessions</p><p className="text-4xl font-black text-blue-600 mt-1">{activeCount}</p></div>
         <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm"><p className="text-xs uppercase font-semibold text-slate-500">Avg attempts</p><p className="text-4xl font-black text-slate-900 mt-1">{avgAttempts}</p></div>
       </div>
+      {loadError && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {loadError}
+        </div>
+      )}
 
       {/* Create session form */}
       {showCreate && (
