@@ -18,6 +18,7 @@ class QuizSettings(BaseModel):
 class QuizBase(BaseModel):
     title: str = Field(max_length=255)
     description: str | None = None
+    cover_image_url: str | None = Field(default=None, max_length=1024)
 
 class QuizCreate(QuizBase):
     settings: QuizSettings | None = None
@@ -25,6 +26,7 @@ class QuizCreate(QuizBase):
 class QuizUpdate(BaseModel):
     title: str | None = Field(max_length=255, default=None)
     description: str | None = None
+    cover_image_url: str | None = Field(default=None, max_length=1024)
     settings: QuizSettings | None = None
     status: str | None = Field(pattern="^(draft|published|archived)$", default=None)
 

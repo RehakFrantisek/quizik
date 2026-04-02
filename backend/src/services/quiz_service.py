@@ -31,6 +31,7 @@ async def create_quiz(db: AsyncSession, author_id: uuid.UUID, quiz_in: QuizCreat
         author_id=author_id,
         title=quiz_in.title,
         description=quiz_in.description,
+        cover_image_url=quiz_in.cover_image_url,
         settings=settings,
     )
     db.add(db_quiz)
@@ -182,6 +183,7 @@ async def export_quiz_json(db: AsyncSession, quiz_id: uuid.UUID, author_id: uuid
             "id": str(quiz.id),
             "title": quiz.title,
             "description": quiz.description,
+            "cover_image_url": quiz.cover_image_url,
             "status": quiz.status,
             "settings": quiz.settings,
         },
