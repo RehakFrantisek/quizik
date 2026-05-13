@@ -1,11 +1,15 @@
 """Quizik API — Health check endpoints."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from redis.asyncio import Redis
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
 from src.config import settings
-from src.database import engine
+from src.database import engine, get_db
+from src.models.quiz import Quiz
+from src.models.user import User
 
 router = APIRouter(prefix="/health", tags=["health"])
 
@@ -37,3 +41,11 @@ async def health_redis():
         return {"status": "ok", "service": "redis"}
     except Exception as e:
         return {"status": "error", "service": "redis", "detail": str(e)}
+
+
+@router.get("/stats")
+async def public_stats(db: AsyncSession = Depends(get_db)):
+    """Public platform stats shown on the landing page."""
+    quiz_count = (await db.execute(select(func.count()).select_from(Quiz))).scalar_one()
+    user_count = (await db.execute(select(func.count()).select_from(User))).scalar_one()
+    return {"quiz_count": quiz_count, "user_count": user_count}

@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
 import { QuestionForm } from "@/components/editor/QuestionForm";
-import { ArrowLeft, Plus, Check, ChevronUp, ChevronDown } from "lucide-react";
+import { ArrowLeft, Plus, Check, ChevronUp, ChevronDown, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { useLang } from "@/contexts/LangContext";
+import { getToken } from "@/lib/auth";
 
 interface Option {
   id: string;
@@ -27,13 +28,55 @@ interface Quiz {
   id: string;
   title: string;
   description?: string;
+  cover_image_url?: string | null;
   status: string;
   questions: Question[];
 }
 
+interface MemoryPairPreview {
+  questionId: string;
+  questionText: string;
+  answerText: string;
+  questionDisplay: string;
+  answerDisplay: string;
+  questionTrimmed: boolean;
+  answerTrimmed: boolean;
+}
+
+type GamePreviewType = "memory_pairs" | "beat_tap" | "color_switch" | "risk_button";
+
+const MEMORY_TEXT_LIMIT = 64;
+
+function trimForCard(text: string, limit = MEMORY_TEXT_LIMIT): { display: string; trimmed: boolean } {
+  const normalized = text.trim().replace(/\s+/g, " ");
+  if (normalized.length <= limit) return { display: normalized, trimmed: false };
+  return { display: normalized.slice(0, limit - 1) + "…", trimmed: true };
+}
+
+function getMemoryPairsPreview(questions: Question[]): MemoryPairPreview[] {
+  return questions
+    .filter((q) => q.type === "single_choice")
+    .map((q) => {
+      const correct = q.options.find((o) => o.is_correct && o.text.trim().length > 0);
+      if (!correct) return null;
+      const qTrim = trimForCard(q.body);
+      const aTrim = trimForCard(correct.text);
+      return {
+        questionId: q.id,
+        questionText: q.body,
+        answerText: correct.text,
+        questionDisplay: qTrim.display,
+        answerDisplay: aTrim.display,
+        questionTrimmed: qTrim.trimmed,
+        answerTrimmed: aTrim.trimmed,
+      };
+    })
+    .filter((pair): pair is MemoryPairPreview => pair !== null);
+}
+
 export default function QuizEditor() {
   const { id } = useParams();
-  const { t } = useLang();
+  const { t, lang } = useLang();
 
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,11 +87,23 @@ export default function QuizEditor() {
   const [statusConfirm, setStatusConfirm] = useState<{ newStatus: string; confirmKey: string } | null>(null);
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   const [isAddingQuestion, setIsAddingQuestion] = useState(false);
+  const [showMemoryPreview, setShowMemoryPreview] = useState(false);
+  const [selectedGamePreview, setSelectedGamePreview] = useState<GamePreviewType>("memory_pairs");
+  const [coverUploading, setCoverUploading] = useState(false);
+  const addQuestionRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     loadQuiz();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    if (!isAddingQuestion) return;
+    const timer = setTimeout(() => {
+      addQuestionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [isAddingQuestion]);
 
   const loadQuiz = async () => {
     try {
@@ -72,13 +127,35 @@ export default function QuizEditor() {
     try {
       await apiClient.patch(`/quizzes/${id}`, {
         title: quiz.title,
-        description: quiz.description
+        description: quiz.description,
+        cover_image_url: quiz.cover_image_url ?? null,
       });
     } catch (err) {
       console.error(err);
       alert("Failed to save quiz metadata");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const uploadCoverImage = async (file: File) => {
+    setCoverUploading(true);
+    try {
+      const token = getToken();
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/v1/uploads/question-image", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const json = await res.json() as { url: string };
+      if (quiz) setQuiz({ ...quiz, cover_image_url: json.url });
+    } catch (err) {
+      console.error("Cover upload failed", err);
+    } finally {
+      setCoverUploading(false);
     }
   };
 
@@ -169,6 +246,10 @@ export default function QuizEditor() {
       loadQuiz(); // revert on error
     }
   };
+
+  const memoryPairsPreview = useMemo(() => getMemoryPairsPreview(quiz?.questions ?? []), [quiz?.questions]);
+  const skippedForMemory = (quiz?.questions ?? []).filter((q) => q.type !== "single_choice").length;
+  const hasTrimmed = memoryPairsPreview.some((pair) => pair.questionTrimmed || pair.answerTrimmed);
 
   if (loading) return <div className="p-8">{t("editor.loadingEditor")}</div>;
   if (!quiz) return <div className="p-8 text-red-500">{t("editor.quizNotFound")}</div>;
@@ -282,6 +363,46 @@ export default function QuizEditor() {
                 placeholder={t("editor.descriptionPlaceholder")}
               />
             </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1.5">{t("editor.coverImage")}</label>
+              <p className="text-xs text-gray-400 mb-2">{t("editor.coverImageHint")}</p>
+              {quiz.cover_image_url ? (
+                <div className="relative inline-block">
+                  <img src={quiz.cover_image_url} alt="cover" className="h-28 rounded-xl object-cover border border-violet-200 shadow-sm" />
+                  <button
+                    type="button"
+                    onClick={() => setQuiz({ ...quiz, cover_image_url: null })}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="url"
+                    value={quiz.cover_image_url ?? ""}
+                    onChange={e => setQuiz({ ...quiz, cover_image_url: e.target.value || null })}
+                    placeholder={t("editor.coverImageUrl")}
+                    className="flex-1 border border-gray-200 p-2.5 rounded-xl text-sm focus:ring-2 focus:ring-violet-400 outline-none"
+                  />
+                  <label className="flex items-center gap-1.5 px-3 py-2.5 bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 rounded-xl text-sm font-semibold cursor-pointer transition-colors whitespace-nowrap">
+                    <Upload size={14} />
+                    {coverUploading ? "…" : t("editor.uploadCover")}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      disabled={coverUploading}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void uploadCoverImage(file);
+                      }}
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
             <button type="submit" disabled={saving} className="bg-gray-800 text-white px-6 py-2.5 rounded-xl hover:bg-gray-900 disabled:opacity-50 font-semibold transition-colors w-full md:w-auto">
               {saving ? t("common.saving") : t("common.save")}
             </button>
@@ -292,13 +413,101 @@ export default function QuizEditor() {
         <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-violet-100">
           <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-8 border-b border-violet-100 pb-4 gap-4">
             <h2 className="text-2xl font-black text-gray-800">{t("editor.questions")} <span className="text-gray-400 font-medium text-lg ml-2">({quiz.questions.length})</span></h2>
-            {!isAddingQuestion && !editingQuestionId && (
+          </div>
+
+          {/* Game mode preview from existing questions */}
+          <div className="mb-8 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 md:p-5">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div>
+                <h3 className="text-sm md:text-base font-bold text-indigo-900">
+                  {lang === "cs" ? "Zobrazit návrh v herním režimu" : "Show game mode proposal"}
+                </h3>
+                <p className="text-xs text-indigo-700 mt-1">{lang === "cs" ? "Vyber hru a podívej se, jak by obsah vypadal ve výukovém game režimu." : "Pick a game and preview how your content would look in game mode."}</p>
+              </div>
               <button
-                onClick={() => setIsAddingQuestion(true)}
-                className="flex justify-center items-center gap-2 text-sm bg-violet-50 text-violet-700 border border-violet-200 px-4 py-2 rounded-xl hover:bg-violet-100 font-bold transition-colors w-full md:w-auto"
+                onClick={() => setShowMemoryPreview((v) => !v)}
+                className="text-sm font-semibold px-4 py-2 rounded-xl border border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-100 transition-colors w-full md:w-auto"
               >
-                <Plus size={18} /> {t("editor.addQuestion")}
+                {showMemoryPreview
+                  ? (lang === "cs" ? "Skrýt náhled" : "Hide preview")
+                  : (lang === "cs" ? "Zobrazit náhled" : "Show preview")}
               </button>
+            </div>
+
+            {showMemoryPreview && (
+              <div className="mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
+                  {[
+                    { id: "memory_pairs", label: "🧠 Pexeso", status: "implemented" },
+                    { id: "beat_tap", label: "🎵 Beat Tap", status: "planned" },
+                    { id: "color_switch", label: "🎨 Color Switch", status: "planned" },
+                    { id: "risk_button", label: "🎲 Risk Button", status: "planned" },
+                  ].map((game) => (
+                    <button
+                      key={game.id}
+                      onClick={() => setSelectedGamePreview(game.id as GamePreviewType)}
+                      className={`text-left border rounded-xl px-3 py-2 transition-colors ${selectedGamePreview === game.id ? "border-indigo-400 bg-white" : "border-indigo-200 bg-indigo-50 hover:bg-indigo-100"}`}
+                    >
+                      <p className="text-sm font-semibold text-indigo-900">{game.label}</p>
+                      <p className={`text-[11px] font-semibold ${game.status === "implemented" ? "text-green-600" : "text-amber-600"}`}>
+                        {game.status === "implemented" ? (lang === "cs" ? "Implementováno" : "Implemented") : (lang === "cs" ? "Návrh (připraveno)" : "Planned (ready)")}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+
+                {selectedGamePreview === "memory_pairs" ? (
+                  memoryPairsPreview.length === 0 ? (
+                    <div className="text-sm text-indigo-800 bg-white border border-indigo-200 rounded-xl p-3">
+                      {lang === "cs"
+                        ? "Pro pexeso zatím nemáš použitelné single-choice otázky se správnou odpovědí."
+                        : "No usable single-choice questions with correct answers for memory yet."}
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-xs text-indigo-700 mb-2">
+                        {lang === "cs"
+                          ? `Použitelné páry: ${memoryPairsPreview.length}. Přeskočeno (není single choice): ${skippedForMemory}.`
+                          : `Usable pairs: ${memoryPairsPreview.length}. Skipped (not single choice): ${skippedForMemory}.`}
+                      </p>
+                      {hasTrimmed && (
+                        <p className="text-xs text-amber-700 mb-2">
+                          {lang === "cs"
+                            ? "Některé karty jsou zkrácené. Najetím myší uvidíš plný text (title)."
+                            : "Some cards are trimmed. Hover to see full text (title)."}
+                        </p>
+                      )}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {memoryPairsPreview.map((pair, idx) => (
+                          <div key={pair.questionId} className="grid grid-cols-2 gap-2 bg-white border border-indigo-100 rounded-xl p-3">
+                            <div className="rounded-lg border border-violet-200 bg-violet-50 p-3" title={pair.questionText}>
+                              <p className="text-[10px] uppercase tracking-wide font-bold text-violet-700 mb-1">Q{idx + 1}</p>
+                              <p className="text-xs text-violet-900 leading-snug">{pair.questionDisplay}</p>
+                              {pair.questionTrimmed && <p className="text-[10px] text-amber-700 mt-1">Truncated</p>}
+                            </div>
+                            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3" title={pair.answerText}>
+                              <p className="text-[10px] uppercase tracking-wide font-bold text-emerald-700 mb-1">A{idx + 1}</p>
+                              <p className="text-xs text-emerald-900 leading-snug">{pair.answerDisplay}</p>
+                              {pair.answerTrimmed && <p className="text-[10px] text-amber-700 mt-1">Truncated</p>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )
+                ) : (
+                  <div className="bg-white border border-indigo-200 rounded-xl p-4">
+                    <p className="text-sm font-semibold text-indigo-900 mb-1">
+                      {selectedGamePreview === "beat_tap" ? "🎵 Beat Tap" : selectedGamePreview === "color_switch" ? "🎨 Color Switch" : "🎲 Risk Button"}
+                    </p>
+                    <p className="text-xs text-indigo-700">
+                      {lang === "cs"
+                        ? "Tato hra je zatím v návrhu. UI a datový model jsou připravené pro budoucí implementaci."
+                        : "This game is currently planned. UI and data model hooks are prepared for future implementation."}
+                    </p>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
@@ -369,10 +578,23 @@ export default function QuizEditor() {
             ))}
 
             {isAddingQuestion && (
-              <QuestionForm
-                onSave={handleSaveQuestion}
-                onCancel={() => setIsAddingQuestion(false)}
-              />
+              <div ref={addQuestionRef}>
+                <QuestionForm
+                  onSave={handleSaveQuestion}
+                  onCancel={() => setIsAddingQuestion(false)}
+                />
+              </div>
+            )}
+
+            {!isAddingQuestion && !editingQuestionId && quiz.questions.length > 0 && (
+              <div className="pt-2">
+                <button
+                  onClick={() => setIsAddingQuestion(true)}
+                  className="w-full flex justify-center items-center gap-2 text-sm bg-violet-50 text-violet-700 border border-violet-200 px-4 py-2 rounded-xl hover:bg-violet-100 font-bold transition-colors"
+                >
+                  <Plus size={18} /> {t("editor.addQuestion")}
+                </button>
+              </div>
             )}
 
             {!isAddingQuestion && quiz.questions.length === 0 && (

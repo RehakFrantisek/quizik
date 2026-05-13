@@ -4,7 +4,7 @@ import secrets
 import uuid
 from datetime import datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -16,6 +16,7 @@ from src.models.quiz import Quiz
 from src.models.quiz_session import QuizSession
 from src.models.user import User
 from src.schemas.session import ScoreOverrideRequest, SessionCreate, SessionUpdate
+from src.services.evaluation_service import evaluate_answer
 
 
 # ── Quiz cloning ──────────────────────────────────────────────────────────────
@@ -32,6 +33,7 @@ async def clone_quiz(db: AsyncSession, quiz_id: uuid.UUID, new_owner: User, is_i
         author_id=new_owner.id,
         title=f"Copy of {source.title}",
         description=source.description,
+        cover_image_url=source.cover_image_url,
         settings=dict(source.settings),
         clone_of_id=source.id,
         is_imported=is_imported,
@@ -94,8 +96,25 @@ async def create_session(db: AsyncSession, owner: User, data: SessionCreate) -> 
         starts_at=data.starts_at,
         ends_at=data.ends_at,
         leaderboard_enabled=data.leaderboard_enabled,
+        play_mode=data.play_mode,
         gamification_enabled=data.gamification_enabled,
         minigame_type=data.minigame_type,
+        minigame_config=data.minigame_config,
+        minigame_trigger_mode=data.minigame_trigger_mode,
+        minigame_trigger_n=data.minigame_trigger_n,
+        max_repeats=data.max_repeats,
+        question_count=data.question_count,
+        shuffle_questions=data.shuffle_questions,
+        shuffle_options=data.shuffle_options,
+        anticheat_enabled=data.anticheat_enabled,
+        anticheat_tab_switch=data.anticheat_tab_switch,
+        anticheat_fast_answer=data.anticheat_fast_answer,
+        bonuses_enabled=data.bonuses_enabled,
+        bonus_eliminate=data.bonus_eliminate,
+        bonus_second_chance=data.bonus_second_chance,
+        bonus_end_correction=data.bonus_end_correction,
+        bonus_unlock_mode=data.bonus_unlock_mode,
+        bonus_unlock_x=data.bonus_unlock_x,
         allow_repeat=data.allow_repeat,
         show_correct_answer=data.show_correct_answer,
     )
@@ -175,7 +194,9 @@ async def list_attempts(
         .options(selectinload(Attempt.answers))
         .order_by(Attempt.completed_at.desc().nullslast())
     )
-    return list((await db.execute(stmt)).scalars().all())
+    attempts = list((await db.execute(stmt)).scalars().all())
+    await _hydrate_in_progress_scores(db, session, attempts)
+    return attempts
 
 
 async def get_attempt_detail(
@@ -197,6 +218,33 @@ async def get_attempt_detail(
     if not attempt:
         raise NotFoundException(resource="Attempt")
     return attempt
+
+
+async def _hydrate_in_progress_scores(
+    db: AsyncSession,
+    session: QuizSession,
+    attempts: list[Attempt],
+) -> None:
+    """Compute transient score/% for in-progress attempts from partial answers."""
+    in_progress = [a for a in attempts if a.status == "in_progress"]
+    if not in_progress:
+        return
+
+    q_stmt = select(Question).where(Question.quiz_id == session.quiz_id)
+    questions = {str(q.id): q for q in (await db.execute(q_stmt)).scalars().all()}
+    max_score = sum(q.points for q in questions.values())
+    for attempt in in_progress:
+        partial = attempt.partial_answers if isinstance(attempt.partial_answers, dict) else {}
+        total = 0
+        for q_id, response in partial.items():
+            question = questions.get(str(q_id))
+            if not question:
+                continue
+            _, points = evaluate_answer(question, response)
+            total += points
+        attempt.score = total
+        attempt.max_score = max_score
+        attempt.percentage = round(total / max_score * 100, 1) if max_score > 0 else 0.0
 
 
 async def hide_attempt_from_leaderboard(
@@ -272,21 +320,37 @@ async def _recalculate_attempt_score(db: AsyncSession, attempt_id: uuid.UUID) ->
 
 
 async def get_leaderboard(
-    db: AsyncSession, session_id: uuid.UUID
+    db: AsyncSession, session_id: uuid.UUID, include_in_progress: bool = False
 ) -> list[Attempt]:
-    """Return completed, visible attempts for a session sorted by score descending."""
+    """Return visible attempts for a session sorted for leaderboard display."""
     session = await db.get(QuizSession, session_id)
     if not session:
         raise NotFoundException(resource="QuizSession")
 
+    status_filter = ["completed", "in_progress"] if include_in_progress else ["completed"]
+    if getattr(session, "play_mode", "quiz") in {"memory_pairs", "speed_match"}:
+        order_fields = [
+            case((Attempt.status == "completed", 0), else_=1),
+            Attempt.time_spent_sec.asc().nullslast(),
+            Attempt.score.desc().nullslast(),
+            Attempt.completed_at.asc().nullslast(),
+            Attempt.started_at.asc(),
+        ]
+    else:
+        order_fields = [
+            case((Attempt.status == "completed", 0), else_=1),
+            Attempt.score.desc().nullslast(),
+            Attempt.completed_at.asc().nullslast(),
+            Attempt.started_at.asc(),
+        ]
     stmt = (
         select(Attempt)
         .where(
             Attempt.session_id == session_id,
-            Attempt.status == "completed",
+            Attempt.status.in_(status_filter),
             Attempt.hidden_from_leaderboard.is_(False),
         )
-        .order_by(Attempt.score.desc().nullslast(), Attempt.completed_at.asc())
+        .order_by(*order_fields)
     )
     return list((await db.execute(stmt)).scalars().all())
 

@@ -3,12 +3,15 @@
 import uuid
 from datetime import datetime
 import secrets
+import csv
+import io
 
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.models.quiz import Quiz
+from src.models.question import Question
 from src.schemas.quiz import QuizCreate, QuizUpdate
 from src.exceptions import NotFoundException, ForbiddenException, ValidationException
 
@@ -21,12 +24,14 @@ async def create_quiz(db: AsyncSession, author_id: uuid.UUID, quiz_in: QuizCreat
         "passing_score_pct": 70,
         "allow_anonymous": True,
         "max_attempts_per_ip": 5,
+        "cover_image_url": None,
     }
     settings = quiz_in.settings.model_dump() if quiz_in.settings else default_settings
     db_quiz = Quiz(
         author_id=author_id,
         title=quiz_in.title,
         description=quiz_in.description,
+        cover_image_url=quiz_in.cover_image_url,
         settings=settings,
     )
     db.add(db_quiz)
@@ -102,3 +107,164 @@ async def update_quiz(db: AsyncSession, quiz_id: uuid.UUID, author_id: uuid.UUID
     await db.commit()
     await db.refresh(quiz)
     return quiz
+
+
+async def merge_quizzes(
+    db: AsyncSession,
+    target_quiz_id: uuid.UUID,
+    author_id: uuid.UUID,
+    source_quiz_ids: list[uuid.UUID],
+    strategy: str = "append",
+    deduplicate: bool = True,
+) -> Quiz:
+    target = await get_quiz(db, target_quiz_id)
+    if target.author_id != author_id:
+        raise ForbiddenException("Not authorized to edit this quiz")
+    if not source_quiz_ids:
+        raise ValidationException("No source quizzes selected")
+
+    source_stmt = select(Quiz).where(Quiz.id.in_(source_quiz_ids), Quiz.author_id == author_id).options(selectinload(Quiz.questions))
+    sources = list((await db.execute(source_stmt)).scalars().all())
+    if len(sources) != len(set(source_quiz_ids)):
+        raise ValidationException("One or more source quizzes were not found")
+
+    existing_bodies = {q.body.strip().lower() for q in target.questions} if deduplicate else set()
+    candidates: list[Question] = []
+    for src in sources:
+        for q in sorted(src.questions, key=lambda x: x.position):
+            body_key = q.body.strip().lower()
+            if deduplicate and body_key in existing_bodies:
+                continue
+            existing_bodies.add(body_key)
+            candidates.append(q)
+
+    if strategy == "interleave":
+        merged: list[Question] = []
+        target_sorted = sorted(target.questions, key=lambda x: x.position)
+        max_len = max(len(target_sorted), len(candidates))
+        for i in range(max_len):
+            if i < len(target_sorted):
+                merged.append(target_sorted[i])
+            if i < len(candidates):
+                merged.append(candidates[i])
+        new_order = merged
+    else:
+        new_order = sorted(target.questions, key=lambda x: x.position) + candidates
+
+    for idx, q in enumerate(new_order):
+        if q.quiz_id == target.id:
+            q.position = idx
+            continue
+        db.add(
+            Question(
+                quiz_id=target.id,
+                position=idx,
+                type=q.type,
+                body=q.body,
+                explanation=q.explanation,
+                options=list(q.options),
+                accepted_answers=list(q.accepted_answers) if q.accepted_answers else None,
+                points=q.points,
+                image_url=q.image_url,
+            )
+        )
+
+    await db.commit()
+    return await get_quiz(db, target_quiz_id)
+
+
+async def export_quiz_json(db: AsyncSession, quiz_id: uuid.UUID, author_id: uuid.UUID) -> dict:
+    quiz = await get_quiz(db, quiz_id)
+    if quiz.author_id != author_id:
+        raise ForbiddenException("Not authorized to export this quiz")
+    questions = sorted(quiz.questions, key=lambda q: q.position)
+    return {
+        "quiz": {
+            "id": str(quiz.id),
+            "title": quiz.title,
+            "description": quiz.description,
+            "cover_image_url": quiz.cover_image_url,
+            "status": quiz.status,
+            "settings": quiz.settings,
+        },
+        "questions": [
+            {
+                "position": q.position,
+                "type": q.type,
+                "body": q.body,
+                "explanation": q.explanation,
+                "options": q.options,
+                "accepted_answers": q.accepted_answers,
+                "points": q.points,
+                "image_url": q.image_url,
+            }
+            for q in questions
+        ],
+    }
+
+
+async def search_public_quizzes(
+    db: AsyncSession,
+    q: str | None,
+    tags: list[str] | None,
+    limit: int,
+    offset: int,
+) -> list[dict]:
+    """Return published public quizzes matching the search query and/or tag filter."""
+    stmt = (
+        select(Quiz)
+        .where(Quiz.is_public.is_(True), Quiz.status == "published")
+        .options(selectinload(Quiz.questions), selectinload(Quiz.author))
+        .order_by(Quiz.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+
+    if q:
+        term = f"%{q}%"
+        stmt = stmt.where(
+            or_(
+                Quiz.title.ilike(term),
+                Quiz.description.ilike(term),
+                Quiz.id.in_(select(Question.quiz_id).where(Question.body.ilike(term))),
+            )
+        )
+
+    if tags:
+        stmt = stmt.where(Quiz.tags.overlap(tags))
+
+    result = await db.execute(stmt)
+    quizzes = list(result.scalars().all())
+
+    return [
+        {
+            "id": quiz.id,
+            "title": quiz.title,
+            "description": quiz.description,
+            "cover_image_url": quiz.cover_image_url,
+            "tags": quiz.tags or [],
+            "question_count": len(quiz.questions),
+            "author_name": quiz.author.display_name or quiz.author.email,
+            "share_slug": quiz.share_slug,
+            "created_at": quiz.created_at,
+        }
+        for quiz in quizzes
+    ]
+
+
+async def export_quiz_csv(db: AsyncSession, quiz_id: uuid.UUID, author_id: uuid.UUID) -> str:
+    quiz = await get_quiz(db, quiz_id)
+    if quiz.author_id != author_id:
+        raise ForbiddenException("Not authorized to export this quiz")
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["type", "body", "option_a", "option_b", "option_c", "option_d", "correct", "points", "explanation"])
+    for q in sorted(quiz.questions, key=lambda x: x.position):
+        opts = q.options or []
+        opt_texts = [str(o.get("text", "")) for o in opts[:4]]
+        while len(opt_texts) < 4:
+            opt_texts.append("")
+        correct_ids = [str(o.get("id", "")) for o in opts if o.get("is_correct")]
+        writer.writerow([q.type, q.body, *opt_texts, ",".join(correct_ids), q.points, q.explanation or ""])
+    return output.getvalue()
