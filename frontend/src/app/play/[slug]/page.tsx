@@ -595,7 +595,7 @@ export default function PlayPage() {
         onComplete={(score, meta) => {
           setMinigameScores((prev) => [...prev, score]);
           if (meta?.riskBet && sessionData?.questions[currentIdx]?.id) {
-            setRiskBets((prev) => ({ ...prev, [sessionData.questions[currentIdx].id]: meta.riskBet }));
+            setRiskBets((prev) => ({ ...prev, [sessionData.questions[currentIdx].id]: meta.riskBet! }));
           }
           setPhase("quiz");
           setQuestionStart(Date.now());
