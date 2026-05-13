@@ -57,7 +57,7 @@ export default function DiscoverPage() {
       const params = new URLSearchParams();
       if (search.trim()) params.set("q", search.trim());
       tagFilter.forEach((tag) => params.append("tags", tag));
-      const url = `${process.env.NEXT_PUBLIC_API_BASE}/api/v1/quizzes/public?${params.toString()}`;
+      const url = `/api/v1/quizzes/public?${params.toString()}`;
       const data = await fetch(url).then((r) => r.json() as Promise<PublicQuiz[]>);
       setQuizzes(Array.isArray(data) ? data : []);
     } catch {

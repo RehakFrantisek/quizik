@@ -58,7 +58,7 @@ export default function Home() {
   const [userCount, setUserCount] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_BASE}/api/v1/health/stats`)
+    fetch(`/api/v1/health/stats`)
       .then((r) => r.json())
       .then((d: { quiz_count: number; user_count: number }) => {
         setQuizCount(d.quiz_count);
