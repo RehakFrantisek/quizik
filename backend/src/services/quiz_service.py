@@ -6,7 +6,7 @@ import secrets
 import csv
 import io
 
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -201,6 +201,55 @@ async def export_quiz_json(db: AsyncSession, quiz_id: uuid.UUID, author_id: uuid
             for q in questions
         ],
     }
+
+
+async def search_public_quizzes(
+    db: AsyncSession,
+    q: str | None,
+    tags: list[str] | None,
+    limit: int,
+    offset: int,
+) -> list[dict]:
+    """Return published public quizzes matching the search query and/or tag filter."""
+    stmt = (
+        select(Quiz)
+        .where(Quiz.is_public.is_(True), Quiz.status == "published")
+        .options(selectinload(Quiz.questions), selectinload(Quiz.author))
+        .order_by(Quiz.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+
+    if q:
+        term = f"%{q}%"
+        stmt = stmt.where(
+            or_(
+                Quiz.title.ilike(term),
+                Quiz.description.ilike(term),
+                Quiz.id.in_(select(Question.quiz_id).where(Question.body.ilike(term))),
+            )
+        )
+
+    if tags:
+        stmt = stmt.where(Quiz.tags.overlap(tags))
+
+    result = await db.execute(stmt)
+    quizzes = list(result.scalars().all())
+
+    return [
+        {
+            "id": quiz.id,
+            "title": quiz.title,
+            "description": quiz.description,
+            "cover_image_url": quiz.cover_image_url,
+            "tags": quiz.tags or [],
+            "question_count": len(quiz.questions),
+            "author_name": quiz.author.display_name or quiz.author.email,
+            "share_slug": quiz.share_slug,
+            "created_at": quiz.created_at,
+        }
+        for quiz in quizzes
+    ]
 
 
 async def export_quiz_csv(db: AsyncSession, quiz_id: uuid.UUID, author_id: uuid.UUID) -> str:

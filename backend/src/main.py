@@ -30,7 +30,7 @@ def create_app() -> FastAPI:
     # Exception handlers
     register_exception_handlers(app)
 
-    from src.routers import admin, auth, groups, health, imports, play, questions, quizzes, sessions, uploads
+    from src.routers import admin, auth, feedback, groups, health, imports, play, questions, quizzes, sessions, uploads
 
     app.include_router(health.router, prefix="/api/v1")
     app.include_router(auth.router, prefix="/api/v1")
@@ -42,6 +42,7 @@ def create_app() -> FastAPI:
     app.include_router(groups.router, prefix="/api/v1")
     app.include_router(play.router, prefix="/api/v1")
     app.include_router(uploads.router, prefix="/api/v1")
+    app.include_router(feedback.router, prefix="/api/v1")
 
     # Serve uploaded files (question images etc.)
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)

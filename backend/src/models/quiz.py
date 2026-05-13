@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database import Base
@@ -43,7 +43,14 @@ class Quiz(Base):
     )
 
     # Indexes
-    __table_args__ = (Index("ix_quizzes_author_id_status", "author_id", "status"),)
+    __table_args__ = (
+        Index("ix_quizzes_author_id_status", "author_id", "status"),
+        Index("ix_quizzes_tags_gin", "tags", postgresql_using="gin"),
+        Index("ix_quizzes_is_public", "is_public"),
+    )
+
+    is_public: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    tags: Mapped[list] = mapped_column(ARRAY(String(100)), nullable=True, server_default="{}")
 
     # clone_of_id: if set, this quiz was cloned from another quiz
     clone_of_id: Mapped[uuid.UUID | None] = mapped_column(

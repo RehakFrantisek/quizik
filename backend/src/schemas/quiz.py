@@ -29,6 +29,8 @@ class QuizUpdate(BaseModel):
     cover_image_url: str | None = Field(default=None, max_length=1024)
     settings: QuizSettings | None = None
     status: str | None = Field(pattern="^(draft|published|archived)$", default=None)
+    is_public: bool | None = None
+    tags: list[str] | None = None
 
 class QuizOut(QuizBase):
     id: uuid.UUID
@@ -36,16 +38,37 @@ class QuizOut(QuizBase):
     share_slug: str | None
     clone_of_id: uuid.UUID | None = None
     is_imported: bool = False
+    is_public: bool = False
+    tags: list[str] = Field(default_factory=list)
     status: str
     settings: QuizSettings
     published_at: datetime | None
     created_at: datetime
     updated_at: datetime
     questions: list[QuestionOut] = Field(default_factory=list)
-    
+
     @field_validator("settings", mode="before")
     @classmethod
     def set_default_settings(cls, v):
         return v if v is not None else QuizSettings().model_dump()
-        
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def coerce_tags(cls, v):
+        return v if v is not None else []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PublicQuizOut(BaseModel):
+    id: uuid.UUID
+    title: str
+    description: str | None
+    cover_image_url: str | None
+    tags: list[str]
+    question_count: int
+    author_name: str
+    share_slug: str | None
+    created_at: datetime
+
     model_config = ConfigDict(from_attributes=True)

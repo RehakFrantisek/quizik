@@ -63,6 +63,7 @@ async def get_public_session_quiz(db: AsyncSession, session_slug: str) -> dict:
         "session_id": str(session.id),
         "session_slug": session.session_slug,
         "title": display_title,
+        "cover_image_url": quiz.cover_image_url,
         "description": quiz.description,
         "leaderboard_enabled": session.leaderboard_enabled,
         "play_mode": getattr(session, "play_mode", "quiz"),

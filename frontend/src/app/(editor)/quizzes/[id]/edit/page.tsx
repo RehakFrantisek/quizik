@@ -4,9 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
 import { QuestionForm } from "@/components/editor/QuestionForm";
-import { ArrowLeft, Plus, Check, ChevronUp, ChevronDown } from "lucide-react";
+import { ArrowLeft, Plus, Check, ChevronUp, ChevronDown, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { useLang } from "@/contexts/LangContext";
+import { getToken } from "@/lib/auth";
 
 interface Option {
   id: string;
@@ -27,6 +28,7 @@ interface Quiz {
   id: string;
   title: string;
   description?: string;
+  cover_image_url?: string | null;
   status: string;
   questions: Question[];
 }
@@ -87,6 +89,7 @@ export default function QuizEditor() {
   const [isAddingQuestion, setIsAddingQuestion] = useState(false);
   const [showMemoryPreview, setShowMemoryPreview] = useState(false);
   const [selectedGamePreview, setSelectedGamePreview] = useState<GamePreviewType>("memory_pairs");
+  const [coverUploading, setCoverUploading] = useState(false);
   const addQuestionRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -124,13 +127,35 @@ export default function QuizEditor() {
     try {
       await apiClient.patch(`/quizzes/${id}`, {
         title: quiz.title,
-        description: quiz.description
+        description: quiz.description,
+        cover_image_url: quiz.cover_image_url ?? null,
       });
     } catch (err) {
       console.error(err);
       alert("Failed to save quiz metadata");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const uploadCoverImage = async (file: File) => {
+    setCoverUploading(true);
+    try {
+      const token = getToken();
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/v1/uploads/question-image", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const json = await res.json() as { url: string };
+      if (quiz) setQuiz({ ...quiz, cover_image_url: json.url });
+    } catch (err) {
+      console.error("Cover upload failed", err);
+    } finally {
+      setCoverUploading(false);
     }
   };
 
@@ -337,6 +362,46 @@ export default function QuizEditor() {
                 className="w-full border border-gray-200 p-3 rounded-xl h-28 resize-none focus:ring-2 focus:ring-violet-400 outline-none transition-shadow"
                 placeholder={t("editor.descriptionPlaceholder")}
               />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1.5">{t("editor.coverImage")}</label>
+              <p className="text-xs text-gray-400 mb-2">{t("editor.coverImageHint")}</p>
+              {quiz.cover_image_url ? (
+                <div className="relative inline-block">
+                  <img src={quiz.cover_image_url} alt="cover" className="h-28 rounded-xl object-cover border border-violet-200 shadow-sm" />
+                  <button
+                    type="button"
+                    onClick={() => setQuiz({ ...quiz, cover_image_url: null })}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="url"
+                    value={quiz.cover_image_url ?? ""}
+                    onChange={e => setQuiz({ ...quiz, cover_image_url: e.target.value || null })}
+                    placeholder={t("editor.coverImageUrl")}
+                    className="flex-1 border border-gray-200 p-2.5 rounded-xl text-sm focus:ring-2 focus:ring-violet-400 outline-none"
+                  />
+                  <label className="flex items-center gap-1.5 px-3 py-2.5 bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 rounded-xl text-sm font-semibold cursor-pointer transition-colors whitespace-nowrap">
+                    <Upload size={14} />
+                    {coverUploading ? "…" : t("editor.uploadCover")}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      disabled={coverUploading}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void uploadCoverImage(file);
+                      }}
+                    />
+                  </label>
+                </div>
+              )}
             </div>
             <button type="submit" disabled={saving} className="bg-gray-800 text-white px-6 py-2.5 rounded-xl hover:bg-gray-900 disabled:opacity-50 font-semibold transition-colors w-full md:w-auto">
               {saving ? t("common.saving") : t("common.save")}

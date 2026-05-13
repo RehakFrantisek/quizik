@@ -101,7 +101,7 @@ export default function SessionsPage() {
     memory_rounds: 1,
     minigame_trigger_mode: "every_n",
     minigame_trigger_n: 3,
-    session_cover_image_url: "",
+
     question_count: 0,
     shuffle_questions: false,
     shuffle_options: false,
@@ -229,9 +229,6 @@ export default function SessionsPage() {
       };
       const baseMinigameConfig =
         typeof form.minigame_config === "object" && form.minigame_config ? { ...form.minigame_config } : {};
-      if (form.session_cover_image_url.trim()) {
-        baseMinigameConfig.session_cover_image_url = form.session_cover_image_url.trim();
-      }
       if (form.title) body.title = form.title;
       if (form.starts_at) body.starts_at = new Date(form.starts_at).toISOString();
       if (form.ends_at) body.ends_at = new Date(form.ends_at).toISOString();
@@ -244,7 +241,10 @@ export default function SessionsPage() {
           enabled_minigames: selectedMinigames,
         };
       } else {
-        body.minigame_type = form.play_mode;
+        // play_mode "quiz" without gamification — don't send it as minigame_type
+        if (form.play_mode !== "quiz") {
+          body.minigame_type = form.play_mode;
+        }
         if (Object.keys(baseMinigameConfig).length > 0) {
           body.minigame_config = baseMinigameConfig;
         }
@@ -409,9 +409,9 @@ export default function SessionsPage() {
       </div>
 
       <div className="grid md:grid-cols-3 gap-4 mb-6">
-        <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm"><p className="text-xs uppercase font-semibold text-slate-500">Total participants</p><p className="text-4xl font-black text-indigo-600 mt-1">{totalParticipants}</p></div>
-        <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm"><p className="text-xs uppercase font-semibold text-slate-500">Active sessions</p><p className="text-4xl font-black text-blue-600 mt-1">{activeCount}</p></div>
-        <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm"><p className="text-xs uppercase font-semibold text-slate-500">Avg attempts</p><p className="text-4xl font-black text-slate-900 mt-1">{avgAttempts}</p></div>
+        <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm"><p className="text-xs uppercase font-semibold text-slate-500 tracking-wide">{t("sessions.statParticipants")}</p><p className="text-4xl font-black text-indigo-600 mt-1">{totalParticipants}</p></div>
+        <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm"><p className="text-xs uppercase font-semibold text-slate-500 tracking-wide">{t("sessions.statActive")}</p><p className="text-4xl font-black text-blue-600 mt-1">{activeCount}</p></div>
+        <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm"><p className="text-xs uppercase font-semibold text-slate-500 tracking-wide">{t("sessions.statAvg")}</p><p className="text-4xl font-black text-slate-900 mt-1">{avgAttempts}</p></div>
       </div>
       {loadError && (
         <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -456,18 +456,6 @@ export default function SessionsPage() {
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
                 placeholder={t("session.titlePlaceholder")}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Cover image URL <span className="text-gray-400 font-normal">{t("common.optional")}</span>
-              </label>
-              <input
-                type="url"
-                value={form.session_cover_image_url}
-                onChange={(e) => setForm({ ...form, session_cover_image_url: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
-                placeholder="https://..."
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -890,19 +878,6 @@ export default function SessionsPage() {
         <div className="grid lg:grid-cols-2 gap-5">
           {filtered.map((s) => (
             <div key={s.id} className="border border-slate-200 p-5 rounded-3xl bg-white shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all">
-              {(() => {
-                const rawCover = s.minigame_config?.["session_cover_image_url"];
-                const sessionCover = typeof rawCover === "string" ? rawCover.trim() : "";
-                if (!sessionCover) return null;
-                return (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={sessionCover}
-                  alt={s.title || "Session cover"}
-                  className="w-full h-40 object-cover rounded-2xl mb-4"
-                />
-                );
-              })()}
               <div className="flex justify-between items-start">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">

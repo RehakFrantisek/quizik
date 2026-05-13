@@ -26,6 +26,7 @@ export default function LeaderboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [title, setTitle] = useState("");
+  const [coverImage, setCoverImage] = useState<string | null>(null);
 
   useEffect(() => {
     // Apply theme class to html element for this public page
@@ -33,10 +34,13 @@ export default function LeaderboardPage() {
   }, [theme]);
 
   useEffect(() => {
-    // Fetch session title
+    // Fetch session title + cover
     fetch(`/api/v1/play/${slug}`)
       .then((r) => r.json())
-      .then((d) => setTitle(d.title ?? ""))
+      .then((d) => {
+        setTitle(d.title ?? "");
+        setCoverImage(d.cover_image_url ?? null);
+      })
       .catch(() => {});
 
     // Fetch leaderboard
@@ -91,11 +95,16 @@ export default function LeaderboardPage() {
           >
             <ArrowLeft size={14} /> {t("leaderboard.backToQuiz")}
           </Link>
-          <div className="flex items-center gap-3">
-            <Trophy size={28} className="text-yellow-500" />
-            <div>
-              <h1 className="text-2xl font-black text-gray-800 dark:text-gray-100">{t("leaderboard.title")}</h1>
-              {title && <p className="text-sm text-gray-500 dark:text-gray-400">{title}</p>}
+          <div className="flex items-center gap-4">
+            {coverImage && (
+              <img src={coverImage} alt={title} className="w-16 h-16 rounded-xl object-cover shadow-sm border border-gray-200 dark:border-gray-700 shrink-0" />
+            )}
+            <div className="flex items-center gap-3">
+              <Trophy size={28} className="text-yellow-500 shrink-0" />
+              <div>
+                <h1 className="text-2xl font-black text-gray-800 dark:text-gray-100">{t("leaderboard.title")}</h1>
+                {title && <p className="text-sm text-gray-500 dark:text-gray-400">{title}</p>}
+              </div>
             </div>
           </div>
         </div>
@@ -167,7 +176,7 @@ export default function LeaderboardPage() {
                 <tr className="border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">
                   <th className="px-4 py-3 text-left w-12">#</th>
                   <th className="px-4 py-3 text-left">{t("leaderboard.colName")}</th>
-                  <th className="px-4 py-3 text-center">Status</th>
+                  <th className="px-4 py-3 text-center">{t("leaderboard.colStatus")}</th>
                   <th className="px-4 py-3 text-right">{t("leaderboard.colScore")}</th>
                   <th className="px-4 py-3 text-right">{t("leaderboard.colPercent")}</th>
                   <th className="px-4 py-3 text-right">{t("leaderboard.colTime")}</th>

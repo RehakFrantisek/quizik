@@ -1,4 +1,5 @@
 from src.models.answer import Answer
+from src.models.feedback import Feedback
 from src.models.attempt import Attempt
 from src.models.group import Group
 from src.models.import_job import ImportJob
@@ -24,4 +25,5 @@ __all__ = [
     "TelemetryEvent",
     "InvitationCode",
     "UserLoginLog",
+    "Feedback",
 ]

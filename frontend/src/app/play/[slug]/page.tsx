@@ -28,6 +28,7 @@ interface SessionData {
   session_id: string;
   session_slug: string;
   title: string;
+  cover_image_url?: string | null;
   description: string | null;
   leaderboard_enabled: boolean;
   play_mode?: "quiz" | "memory_pairs" | string;
@@ -429,8 +430,12 @@ export default function PlayPage() {
   if (phase === "name") return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 px-4">
       <PlayControls />
-      <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-8 max-w-md w-full shadow-md">
-        <h1 className="text-2xl font-black text-gray-800 mb-1">{sessionData!.title}</h1>
+      <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl overflow-hidden max-w-md w-full shadow-md">
+        {sessionData!.cover_image_url && (
+          <img src={sessionData!.cover_image_url} alt={sessionData!.title} className="w-full h-44 object-cover block" />
+        )}
+        <div className={sessionData!.cover_image_url ? "p-6 pt-5" : "p-8"}>
+        <h1 className="text-2xl font-black text-gray-800 dark:text-gray-100 mb-1">{sessionData!.title}</h1>
         {sessionData!.description && <p className="text-gray-500 text-sm mb-3">{sessionData!.description}</p>}
         <p className="text-sm text-gray-400 mb-5">
           {sessionData!.question_count} {t("play.questions")}
@@ -461,6 +466,7 @@ export default function PlayPage() {
             {avatar} {t("play.startQuiz")}
           </button>
         </form>
+        </div>
       </div>
     </div>
   );

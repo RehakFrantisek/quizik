@@ -6,7 +6,8 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useLang } from "@/contexts/LangContext";
-import { LogOut, Moon, Sun, PlusCircle, Users, LayoutDashboard, Play, UserCircle, BookOpen, Menu, X, ShieldCheck } from "lucide-react";
+import { LogOut, Moon, Sun, PlusCircle, Users, LayoutDashboard, Play, UserCircle, BookOpen, Menu, X, ShieldCheck, Globe2 } from "lucide-react";
+import { FeedbackModal } from "@/components/FeedbackModal";
 
 export function DashboardNav() {
   const { logout, user } = useAuth();
@@ -27,6 +28,7 @@ export function DashboardNav() {
     { href: "/quizzes", label: t("nav.home"), icon: <LayoutDashboard size={15} /> },
     { href: "/sessions", label: t("nav.sessions"), icon: <Play size={15} /> },
     { href: "/groups", label: t("nav.groups"), icon: <Users size={15} /> },
+    { href: "/discover", label: t("nav.discover"), icon: <Globe2 size={15} /> },
     { href: "/guide", label: t("nav.guide"), icon: <BookOpen size={15} /> },
     ...(user?.role === "admin" ? [{ href: "/admin", label: "Admin", icon: <ShieldCheck size={15} /> }] : []),
   ];
@@ -88,6 +90,8 @@ export function DashboardNav() {
           <Link href="/profile" className={btnClass} title={user?.display_name || "My Profile"}>
             <UserCircle size={16} />
           </Link>
+
+          <FeedbackModal />
 
           <button
             onClick={toggleLang}

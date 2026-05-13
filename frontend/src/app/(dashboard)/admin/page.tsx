@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { apiClient } from "@/lib/api-client";
 import {
   ShieldCheck, Users, Ticket, Trash2, Plus, ChevronDown, ChevronUp,
-  RefreshCw, Eye, EyeOff, AlertTriangle, X, Check,
+  RefreshCw, Eye, EyeOff, AlertTriangle, X, Check, MessageSquare, CheckCircle, RotateCcw, Image,
 } from "lucide-react";
 
 interface AdminUser {
@@ -37,6 +37,19 @@ interface LoginLog {
   created_at: string;
 }
 
+interface FeedbackItem {
+  id: string;
+  user_id: string;
+  user_email: string | null;
+  user_display_name: string | null;
+  message: string;
+  image_url: string | null;
+  status: string;
+  admin_reply: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString("cs-CZ", { dateStyle: "short", timeStyle: "short" });
 }
@@ -57,7 +70,7 @@ export default function AdminPage() {
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [codes, setCodes] = useState<InvitationCode[]>([]);
-  const [tab, setTab] = useState<"users" | "codes">("users");
+  const [tab, setTab] = useState<"users" | "codes" | "feedback">("users");
   const [fetching, setFetching] = useState(true);
 
   // User edit modal
@@ -75,6 +88,15 @@ export default function AdminPage() {
   const [logsUserId, setLogsUserId] = useState<string | null>(null);
   const [logs, setLogs] = useState<LoginLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+
+  // Feedback
+  const [feedbackList, setFeedbackList] = useState<FeedbackItem[]>([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [expandedFb, setExpandedFb] = useState<string | null>(null);
+  const [replyingFbId, setReplyingFbId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [replySaving, setReplySaving] = useState(false);
+  const [deletingFbId, setDeletingFbId] = useState<string | null>(null);
 
   // Codes
   const [newCodeEmail, setNewCodeEmail] = useState("");
@@ -101,6 +123,58 @@ export default function AdminPage() {
     ]);
     setUsers(Array.isArray(u) ? u : []);
     setCodes(Array.isArray(c) ? c : []);
+  };
+
+  const loadFeedback = async () => {
+    setFeedbackLoading(true);
+    try {
+      const data = await apiClient.get("/feedback/admin");
+      setFeedbackList(Array.isArray(data) ? data : []);
+    } catch {
+      // ignore
+    } finally {
+      setFeedbackLoading(false);
+    }
+  };
+
+  const saveFeedbackReply = async (fbId: string) => {
+    setReplySaving(true);
+    try {
+      const updated = await apiClient.patch(`/feedback/admin/${fbId}`, {
+        admin_reply: replyText || null,
+        status: "resolved",
+      }) as FeedbackItem;
+      setFeedbackList((prev) => prev.map((f) => (f.id === fbId ? updated : f)));
+      setReplyingFbId(null);
+      setReplyText("");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Chyba");
+    } finally {
+      setReplySaving(false);
+    }
+  };
+
+  const toggleFeedbackStatus = async (fb: FeedbackItem) => {
+    try {
+      const updated = await apiClient.patch(`/feedback/admin/${fb.id}`, {
+        status: fb.status === "resolved" ? "open" : "resolved",
+      }) as FeedbackItem;
+      setFeedbackList((prev) => prev.map((f) => (f.id === fb.id ? updated : f)));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Chyba");
+    }
+  };
+
+  const deleteFeedback = async (id: string) => {
+    setDeletingFbId(id);
+    try {
+      await apiClient.delete(`/feedback/admin/${id}`);
+      setFeedbackList((prev) => prev.filter((f) => f.id !== id));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Chyba");
+    } finally {
+      setDeletingFbId(null);
+    }
   };
 
   const openEditModal = (u: AdminUser) => {
@@ -216,6 +290,17 @@ export default function AdminPage() {
         >
           <Ticket size={15} /> Zvací kódy ({codes.filter((c) => !c.used).length} volných)
         </button>
+        <button
+          onClick={() => { setTab("feedback"); loadFeedback(); }}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors ${tab === "feedback" ? "border-violet-600 text-violet-700" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+        >
+          <MessageSquare size={15} /> Zpětná vazba
+          {feedbackList.filter((f) => f.status === "open").length > 0 && (
+            <span className="bg-violet-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
+              {feedbackList.filter((f) => f.status === "open").length}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* ── Users tab ─────────────────────────────────────────────────────── */}
@@ -316,6 +401,123 @@ export default function AdminPage() {
               <p className="text-gray-400 text-center py-8">Žádné kódy. Vygeneruj první!</p>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── Feedback tab ──────────────────────────────────────────────────── */}
+      {tab === "feedback" && (
+        <div className="space-y-3">
+          {feedbackLoading ? (
+            <p className="text-gray-400 text-center py-8">Načítám...</p>
+          ) : feedbackList.length === 0 ? (
+            <p className="text-gray-400 text-center py-8">Žádná zpětná vazba.</p>
+          ) : (
+            feedbackList.map((fb) => (
+              <div key={fb.id} className={`border rounded-xl p-4 bg-white shadow-sm ${fb.status === "resolved" ? "opacity-70" : ""}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="text-xs font-semibold text-gray-500">
+                        {fb.user_display_name || fb.user_email || "Neznámý uživatel"}
+                      </span>
+                      {fb.user_email && fb.user_display_name && (
+                        <span className="text-xs text-gray-400">{fb.user_email}</span>
+                      )}
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-bold border ${
+                        fb.status === "resolved"
+                          ? "bg-green-50 text-green-700 border-green-200"
+                          : "bg-orange-50 text-orange-600 border-orange-200"
+                      }`}>
+                        {fb.status === "resolved" ? "Vyřešeno" : "Otevřeno"}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-800 line-clamp-2">{fb.message}</p>
+                    <p className="text-xs text-gray-400 mt-1">{formatDate(fb.created_at)}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => setExpandedFb(expandedFb === fb.id ? null : fb.id)}
+                      className="text-xs text-gray-500 bg-gray-50 border border-gray-200 px-2.5 py-1.5 rounded hover:bg-gray-100"
+                    >
+                      {expandedFb === fb.id ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    </button>
+                    <button
+                      onClick={() => toggleFeedbackStatus(fb)}
+                      className={`text-xs px-2.5 py-1.5 rounded border transition-colors ${
+                        fb.status === "resolved"
+                          ? "text-orange-600 bg-orange-50 border-orange-200 hover:bg-orange-100"
+                          : "text-green-600 bg-green-50 border-green-200 hover:bg-green-100"
+                      }`}
+                      title={fb.status === "resolved" ? "Znovu otevřít" : "Označit jako vyřešené"}
+                    >
+                      {fb.status === "resolved" ? <RotateCcw size={13} /> : <CheckCircle size={13} />}
+                    </button>
+                    <button
+                      onClick={() => { setReplyingFbId(fb.id); setReplyText(fb.admin_reply ?? ""); setExpandedFb(fb.id); }}
+                      className="text-xs text-violet-600 bg-violet-50 border border-violet-200 px-2.5 py-1.5 rounded hover:bg-violet-100"
+                      title="Odpovědět"
+                    >
+                      Odpovědět
+                    </button>
+                    <button
+                      onClick={() => { if (confirm("Smazat tuto zpětnou vazbu?")) deleteFeedback(fb.id); }}
+                      disabled={deletingFbId === fb.id}
+                      className="text-xs text-red-500 bg-red-50 border border-red-200 px-2 py-1.5 rounded hover:bg-red-100 disabled:opacity-40"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Expanded: full message + image + reply */}
+                {expandedFb === fb.id && (
+                  <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{fb.message}</p>
+                    {fb.image_url && (
+                      <a href={fb.image_url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline">
+                        <Image size={13} /> Přiložený obrázek
+                      </a>
+                    )}
+                    {fb.image_url && (
+                      <img src={fb.image_url} alt="attachment" className="rounded-xl max-h-48 object-cover w-full border border-gray-100" />
+                    )}
+                    {fb.admin_reply && replyingFbId !== fb.id && (
+                      <div className="bg-violet-50 border-l-4 border-violet-500 rounded-r-xl p-3">
+                        <p className="text-xs font-semibold text-violet-700 mb-1">Tvoje odpověď:</p>
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{fb.admin_reply}</p>
+                      </div>
+                    )}
+                    {replyingFbId === fb.id && (
+                      <div className="space-y-2">
+                        <textarea
+                          rows={3}
+                          value={replyText}
+                          onChange={(e) => setReplyText(e.target.value)}
+                          placeholder="Napiš odpověď uživateli..."
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-400 resize-none"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => saveFeedbackReply(fb.id)}
+                            disabled={replySaving}
+                            className="flex-1 bg-violet-600 text-white py-1.5 rounded-lg text-sm font-semibold hover:bg-violet-700 disabled:opacity-50"
+                          >
+                            {replySaving ? "Ukládám..." : "Uložit a uzavřít"}
+                          </button>
+                          <button
+                            onClick={() => setReplyingFbId(null)}
+                            className="px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-sm hover:bg-gray-50"
+                          >
+                            Zrušit
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
         </div>
       )}
 

@@ -4,6 +4,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { Plus, Trash, Eye, Edit, X, ImagePlus, Loader } from "lucide-react";
 import { useRef, useState } from "react";
 import { getToken } from "@/lib/auth";
+import { useLang } from "@/contexts/LangContext";
 
 type QuestionType = "single_choice" | "multiple_choice" | "true_false" | "short_answer";
 
@@ -48,6 +49,7 @@ function nextOptionId(existing: Option[]): string {
 }
 
 export function QuestionForm({ initialData, onSave, onCancel }: Props) {
+  const { t } = useLang();
   const [preview, setPreview] = useState(false);
   const [newAlias, setNewAlias] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -114,7 +116,7 @@ export function QuestionForm({ initialData, onSave, onCancel }: Props) {
       <div className="border p-4 rounded-lg shadow-sm bg-white pb-6">
         <div className="flex justify-between items-center mb-4 border-b pb-2">
           <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider bg-indigo-50 px-2 py-1 rounded">{data.type.replace(/_/g, " ")}</span>
-          <span className="text-sm font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">{data.points} points</span>
+          <span className="text-sm font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">{data.points} b.</span>
         </div>
         <p className="text-lg font-medium text-gray-800 mb-6 whitespace-pre-wrap">{data.body || "Question body..."}</p>
         {data.type !== "short_answer" && (
@@ -124,18 +126,18 @@ export function QuestionForm({ initialData, onSave, onCancel }: Props) {
                 <div className={`w-8 h-8 rounded flex justify-center items-center text-sm font-bold mr-3 ${opt.is_correct ? "bg-green-200 text-green-800" : "bg-gray-200 text-gray-600"}`}>
                   {opt.id.toUpperCase() || "?"}
                 </div>
-                <span className="text-gray-700">{opt.text || "Empty Option"}</span>
+                <span className="text-gray-700">{opt.text || t("qform.emptyOption")}</span>
               </div>
             ))}
           </div>
         )}
         {data.explanation && (
           <div className="mt-4 p-4 bg-blue-50 border-l-4 border-blue-400 text-blue-800 rounded-r text-sm mb-4">
-            <strong className="block mb-1 text-blue-900">Explanation:</strong> {data.explanation}
+            <strong className="block mb-1 text-blue-900">{t("qform.explanation")}:</strong> {data.explanation}
           </div>
         )}
         <button type="button" onClick={() => setPreview(false)} className="flex items-center gap-2 text-sm text-gray-600 hover:text-black mt-4 font-medium transition-colors">
-          <Edit size={16} /> Edit Question
+          <Edit size={16} /> {t("qform.editQuestion")}
         </button>
       </div>
     );
@@ -144,15 +146,15 @@ export function QuestionForm({ initialData, onSave, onCancel }: Props) {
   return (
     <form onSubmit={handleSubmit(onSave)} className="border border-gray-200 p-6 rounded-xl shadow-sm bg-white space-y-6">
       <div className="flex justify-between items-center mb-6 pb-4 border-b">
-        <h3 className="font-bold text-xl text-gray-800">{initialData ? "Edit Question" : "Add Question"}</h3>
+        <h3 className="font-bold text-xl text-gray-800">{initialData ? t("qform.editQuestion") : t("editor.addQuestion")}</h3>
         <button type="button" onClick={() => setPreview(true)} className="flex items-center gap-2 text-sm bg-gray-100 px-3 py-1.5 rounded-md hover:bg-gray-200 font-medium transition-colors">
-          <Eye size={16} /> Preview Mode
+          <Eye size={16} /> {t("qform.previewMode")}
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Question Type</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">{t("qform.questionType")}</label>
           <select {...register("type")} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow"
             onChange={(e) => {
               const val = e.target.value as QuestionType;
@@ -169,28 +171,26 @@ export function QuestionForm({ initialData, onSave, onCancel }: Props) {
                 }
               }
             }}>
-            <option value="single_choice">Single Choice</option>
-            <option value="multiple_choice">Multiple Choice</option>
-            <option value="true_false">True / False</option>
-            <option value="short_answer">Short Answer</option>
+            <option value="single_choice">{t("qform.typeSingle")}</option>
+            <option value="multiple_choice">{t("qform.typeMultiple")}</option>
+            <option value="true_false">{t("qform.typeTrueFalse")}</option>
+            <option value="short_answer">{t("qform.typeShortAnswer")}</option>
           </select>
         </div>
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Points Awarded</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">{t("qform.pointsAwarded")}</label>
           <input type="number" {...register("points", { valueAsNumber: true })} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow" min="1" max="100" />
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Question Body</label>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">{t("qform.questionBody")}</label>
         <textarea {...register("body", { required: true })} className="w-full border border-gray-300 p-3 rounded-lg h-32 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow" placeholder="e.g. What is the capital of France?" />
       </div>
 
       {/* Question image (optional) */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Image <span className="text-gray-400 font-normal">(optional — JPEG/PNG/WebP, max 5 MB)</span>
-        </label>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">{t("qform.imageOptional")}</label>
         {imageUrl ? (
           <div className="relative inline-block">
             <img src={imageUrl} alt="Question image" className="max-h-40 rounded-lg border border-gray-200 object-contain" />
@@ -219,7 +219,7 @@ export function QuestionForm({ initialData, onSave, onCancel }: Props) {
               className="flex items-center gap-2 text-sm border border-dashed border-gray-300 text-gray-500 px-4 py-2 rounded-lg hover:border-blue-400 hover:text-blue-600 disabled:opacity-50 transition-colors"
             >
               {uploadingImage ? <Loader size={16} className="animate-spin" /> : <ImagePlus size={16} />}
-              {uploadingImage ? "Uploading..." : "Upload image"}
+              {uploadingImage ? "…" : t("qform.uploadImage")}
             </button>
           </div>
         )}
@@ -228,12 +228,12 @@ export function QuestionForm({ initialData, onSave, onCancel }: Props) {
 
       {questionType !== "short_answer" && (
         <div className="space-y-3 bg-gray-50 p-4 rounded-lg border border-gray-100">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Options</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">{t("qform.options")}</label>
           {fields.map((field, index) => (
             <div key={field.id} className="flex flex-wrap md:flex-nowrap items-center gap-3 bg-white p-2 rounded shadow-sm border border-gray-200">
               <label className="flex items-center gap-2 cursor-pointer pl-2" title="Mark as Correct Answer">
                 <input type="checkbox" {...register(`options.${index}.is_correct`)} className="w-5 h-5 text-green-600 rounded focus:ring-green-500" />
-                <span className="text-xs font-semibold text-gray-500 uppercase">Correct</span>
+                <span className="text-xs font-semibold text-gray-500 uppercase">{t("qform.correct")}</span>
               </label>
               <input type="text" {...register(`options.${index}.id`)} className="w-16 border border-gray-300 p-2 rounded text-center uppercase font-mono text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="ID (A, B)" />
               <input type="text" {...register(`options.${index}.text`)} className="flex-1 min-w-[200px] border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Option text..." />
@@ -246,7 +246,7 @@ export function QuestionForm({ initialData, onSave, onCancel }: Props) {
           ))}
           {questionType !== "true_false" && (
             <button type="button" onClick={() => append({ id: nextOptionId(watch("options") ?? []), text: "", is_correct: false })} className="flex items-center gap-1 text-sm font-medium text-blue-600 bg-blue-50 px-3 py-2 rounded-lg hover:bg-blue-100 transition-colors mt-3">
-              <Plus size={16} /> Add Another Option
+              <Plus size={16} /> {t("qform.addAnotherOption")}
             </button>
           )}
         </div>
@@ -256,24 +256,20 @@ export function QuestionForm({ initialData, onSave, onCancel }: Props) {
       {questionType === "short_answer" && (
         <div className="space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Correct Answer <span className="text-gray-400 font-normal">(primary)</span>
-            </label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">{t("qform.correctAnswer")}</label>
             <input
               type="text"
               {...register("options.0.text")}
               className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="e.g. Paris"
+              placeholder={t("qform.correctAnswerPlaceholder")}
             />
             <input type="hidden" {...register("options.0.id")} value="correct" />
             <input type="hidden" {...register("options.0.is_correct")} value="true" />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Accepted aliases <span className="text-gray-400 font-normal">(fuzzy-matched, case-insensitive)</span>
-            </label>
-            <p className="text-xs text-gray-500 mb-2">Answers similar to these will also be marked correct automatically.</p>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">{t("qform.acceptedAliases")}</label>
+            <p className="text-xs text-gray-500 mb-2">{t("qform.acceptedAliasesHint")}</p>
             <div className="flex gap-2 mb-2">
               <input
                 type="text"
@@ -284,7 +280,7 @@ export function QuestionForm({ initialData, onSave, onCancel }: Props) {
                 className="flex-1 border border-gray-300 p-2 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
               />
               <button type="button" onClick={addAlias} className="flex items-center gap-1 text-sm bg-blue-50 text-blue-700 border border-blue-200 px-3 py-2 rounded-lg hover:bg-blue-100">
-                <Plus size={14} /> Add
+                <Plus size={14} /> {t("qform.addAlias")}
               </button>
             </div>
             {acceptedAnswers.length > 0 && (
@@ -304,13 +300,13 @@ export function QuestionForm({ initialData, onSave, onCancel }: Props) {
       )}
 
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Explanation <span className="text-gray-400 font-normal">(Optional)</span></label>
-        <textarea {...register("explanation")} className="w-full border border-gray-300 p-3 rounded-lg h-20 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow" placeholder="This will be shown after the user answers..." />
+        <label className="block text-sm font-semibold text-gray-700 mb-2">{t("qform.explanation")}</label>
+        <textarea {...register("explanation")} className="w-full border border-gray-300 p-3 rounded-lg h-20 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow" placeholder={t("qform.explanationPlaceholder")} />
       </div>
 
       <div className="flex gap-3 justify-end pt-6 border-t mt-4">
-        <button type="button" onClick={onCancel} className="px-5 py-2.5 font-medium border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
-        <button type="submit" className="px-5 py-2.5 font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm transition-colors">Save Question</button>
+        <button type="button" onClick={onCancel} className="px-5 py-2.5 font-medium border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">{t("common.cancel")}</button>
+        <button type="submit" className="px-5 py-2.5 font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm transition-colors">{t("qform.saveQuestion")}</button>
       </div>
     </form>
   );

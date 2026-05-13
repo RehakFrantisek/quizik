@@ -1,83 +1,249 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Play, Users, Trophy, Settings, Share2, Upload, PlusCircle, Zap, ShieldCheck, Sparkles, Link2, QrCode } from "lucide-react";
+import {
+  Play,
+  Users,
+  Share2,
+  BarChart2,
+  Download,
+  FileText,
+  SlidersHorizontal,
+  GraduationCap,
+  Globe2,
+  MessageSquarePlus,
+} from "lucide-react";
 import { useLang } from "@/contexts/LangContext";
 
-const Section = ({ icon, title, number, children, tone = "bg-white" }: { icon: React.ReactNode; title: string; number: string; children: React.ReactNode; tone?: string }) => (
-  <div className={`${tone} rounded-3xl border border-white/70 shadow-sm p-7`}>
-    <div className="flex items-center justify-between mb-5">
-      <span className="text-5xl font-bold tracking-tight text-indigo-200">{number}</span>
-      <div className="p-3 bg-gradient-to-r from-indigo-600 to-purple-500 rounded-2xl text-white shadow-lg shadow-indigo-500/25">{icon}</div>
+interface GuideCardProps {
+  number: string;
+  icon: React.ReactNode;
+  title: string;
+  steps: string[];
+  chips?: string[];
+  extra?: React.ReactNode;
+}
+
+function GuideCard({ number, icon, title, steps, chips, extra }: GuideCardProps) {
+  return (
+    <div className="bg-white border border-gray-200 dark:bg-gray-800 dark:border-gray-700 rounded-3xl p-6 flex flex-col gap-4">
+      <div className="flex items-start justify-between">
+        <span className="font-extrabold text-4xl text-gray-200 dark:text-gray-700 leading-none select-none">
+          {number}
+        </span>
+        <div className="w-9 h-9 rounded-xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center text-violet-600 dark:text-violet-400 flex-shrink-0">
+          {icon}
+        </div>
+      </div>
+
+      <h2 className="font-bold text-[1rem] text-gray-900 dark:text-gray-100 leading-snug -mt-1">
+        {title}
+      </h2>
+
+      <div className="flex flex-col gap-2">
+        {steps.map((step, i) => (
+          <div key={i} className="flex items-start gap-2.5">
+            <span className="mt-0.5 w-[18px] h-[18px] rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400 text-[10px] font-extrabold flex items-center justify-center flex-shrink-0">
+              {i + 1}
+            </span>
+            <span className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{step}</span>
+          </div>
+        ))}
+      </div>
+
+      {extra && <div className="mt-auto">{extra}</div>}
+
+      {chips && chips.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-auto">
+          {chips.map((chip) => (
+            <span
+              key={chip}
+              className="px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-xs font-semibold text-gray-500 dark:text-gray-400"
+            >
+              {chip}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
-    <h2 className="text-4xl font-bold tracking-tight text-slate-900 mb-3">{title}</h2>
-    {children}
-  </div>
-);
+  );
+}
 
 export default function GuidePage() {
   const { t } = useLang();
 
+  const cards = [
+    {
+      number: "01",
+      icon: <FileText size={18} />,
+      title: t("guide.step1.title"),
+      steps: [
+        t("guide.step1.s1"),
+        t("guide.step1.s2"),
+        t("guide.step1.s3"),
+        t("guide.step1.s4"),
+      ],
+      chips: [t("guide.step1.sub1"), t("guide.step1.sub2"), t("guide.step1.sub3")],
+    },
+    {
+      number: "02",
+      icon: <Share2 size={18} />,
+      title: t("guide.step2.title"),
+      steps: [
+        t("guide.step2.s1"),
+        t("guide.step2.s2"),
+        t("guide.step2.s3"),
+      ],
+      extra: (
+        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 text-xs text-gray-500 dark:text-gray-400 font-mono">
+          <span className="flex-1 truncate">qvizovna.app/q/abc-1234</span>
+          <button className="px-2 py-0.5 rounded-md bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400 text-[10px] font-bold uppercase tracking-wide">
+            COPY
+          </button>
+        </div>
+      ),
+      chips: [t("guide.step2.sub1")],
+    },
+    {
+      number: "03",
+      icon: <Play size={18} />,
+      title: t("guide.step3.title"),
+      steps: [
+        t("guide.step3.s1"),
+        t("guide.step3.s2"),
+        t("guide.step3.s3"),
+        t("guide.step3.s4"),
+      ],
+      chips: [t("guide.step3.sub1"), t("guide.step3.sub2")],
+    },
+    {
+      number: "04",
+      icon: <Users size={18} />,
+      title: t("guide.step4.title"),
+      steps: [
+        t("guide.step4.s1"),
+        t("guide.step4.s2"),
+        t("guide.step4.s3"),
+      ],
+    },
+    {
+      number: "05",
+      icon: <BarChart2 size={18} />,
+      title: t("guide.step5.title"),
+      steps: [
+        t("guide.step5.s1"),
+        t("guide.step5.s2"),
+        t("guide.step5.s3"),
+      ],
+    },
+    {
+      number: "06",
+      icon: <SlidersHorizontal size={18} />,
+      title: t("guide.step6.title"),
+      steps: [
+        t("guide.step6.s1"),
+        t("guide.step6.s2"),
+        t("guide.step6.s3"),
+        t("guide.step6.s4"),
+      ],
+      chips: [t("guide.step6.sub1"), t("guide.step6.sub2"), t("guide.step6.sub3"), t("guide.step6.sub4")],
+    },
+    {
+      number: "07",
+      icon: <Download size={18} />,
+      title: t("guide.step7.title"),
+      steps: [
+        t("guide.step7.s1"),
+        t("guide.step7.s2"),
+        t("guide.step7.s3"),
+      ],
+      chips: [t("guide.step7.sub1"), t("guide.step7.sub2"), t("guide.step7.sub3")],
+    },
+    {
+      number: "08",
+      icon: <GraduationCap size={18} />,
+      title: t("guide.step8.title"),
+      steps: [
+        t("guide.step8.s1"),
+        t("guide.step8.s2"),
+        t("guide.step8.s3"),
+        t("guide.step8.s4"),
+      ],
+      chips: [t("guide.step8.sub1"), t("guide.step8.sub2")],
+    },
+    {
+      number: "09",
+      icon: <Globe2 size={18} />,
+      title: t("guide.step9.title"),
+      steps: [
+        t("guide.step9.s1"),
+        t("guide.step9.s2"),
+        t("guide.step9.s3"),
+        t("guide.step9.s4"),
+      ],
+      chips: [t("guide.step9.sub1"), t("guide.step9.sub2")],
+    },
+    {
+      number: "10",
+      icon: <MessageSquarePlus size={18} />,
+      title: t("guide.step10.title"),
+      steps: [
+        t("guide.step10.s1"),
+        t("guide.step10.s2"),
+        t("guide.step10.s3"),
+        t("guide.step10.s4"),
+      ],
+      chips: [t("guide.step10.sub1"), t("guide.step10.sub2")],
+    },
+  ];
+
   return (
-    <div className="max-w-7xl mx-auto p-6 md:p-10 space-y-8">
-      <div className="rounded-[2rem] overflow-hidden bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-xl shadow-indigo-900/20">
-        <div className="grid lg:grid-cols-2">
-          <div className="p-10">
-            <p className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-xs font-bold tracking-[0.14em] uppercase mb-6"><Sparkles size={14} /> Knowledge reimagined</p>
-            <h1 className="text-6xl font-bold tracking-tight mb-4">How Scholar Works</h1>
-            <p className="text-indigo-100 text-xl font-medium leading-relaxed">{t("guide.subtitle")}</p>
-          </div>
-          <div className="hidden lg:block bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.3),transparent_55%)]" />
-        </div>
+    <div className="max-w-4xl mx-auto p-6 md:p-8 space-y-6">
+      {/* Hero */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-700 via-violet-600 to-indigo-600 px-8 py-10 text-white shadow-xl shadow-violet-900/20">
+        <p className="text-[10px] font-extrabold tracking-[0.16em] uppercase text-violet-200 mb-4">
+          {t("guide.hero.badge")}
+        </p>
+        <h1 className="font-extrabold text-3xl md:text-4xl leading-tight mb-3 tracking-tight">
+          {t("guide.hero.title")}
+        </h1>
+        <p className="text-violet-100 text-sm md:text-base max-w-lg leading-relaxed">
+          {t("guide.hero.subtitle")}
+        </p>
+        {/* decorative circle */}
+        <div className="pointer-events-none absolute -right-10 -top-10 w-52 h-52 rounded-full bg-white/5" />
+        <div className="pointer-events-none absolute -right-4 -bottom-14 w-72 h-72 rounded-full bg-white/[0.04]" />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <Section icon={<BookOpen size={20} />} number="01" title="Create Quiz">
-          <p className="text-slate-600 font-medium mb-6">Craft professional assessments with AI-assisted editor. Choose from 10+ question formats.</p>
-          <div className="grid sm:grid-cols-3 gap-3">
-            <div className="bg-indigo-50 rounded-2xl p-4 text-center text-sm font-bold text-indigo-700">AI Draft</div>
-            <div className="bg-indigo-50 rounded-2xl p-4 text-center text-sm font-bold text-indigo-700">Rich Media</div>
-            <div className="bg-indigo-50 rounded-2xl p-4 text-center text-sm font-bold text-indigo-700">Import</div>
-          </div>
-        </Section>
-
-        <Section icon={<Share2 size={20} />} number="02" title="Share Quiz" tone="bg-[#f1ecfb]">
-          <p className="text-slate-600 font-medium mb-6">Seamlessly distribute your content via links, codes, or direct invitations.</p>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between rounded-2xl bg-white p-4 text-sm font-medium text-slate-600"><span className="inline-flex items-center gap-2"><Link2 size={14} className="text-indigo-500" /> scholar.edu/q/v3-8921-j</span><span className="text-indigo-600 font-bold">COPY</span></div>
-            <div className="flex items-center justify-between rounded-2xl bg-white p-4 text-sm font-medium text-slate-700"><span className="inline-flex items-center gap-2"><QrCode size={14} className="text-indigo-500" /> Generate QR Code</span><span>›</span></div>
-          </div>
-        </Section>
-
-        <Section icon={<Play size={20} />} number="03" title="Start Session" tone="bg-slate-950 text-white border-slate-900">
-          <p className="text-slate-300 font-medium mb-6">Go live in seconds. Host synchronous learning experiences with real-time feedback loops.</p>
-          <button className="w-full rounded-full bg-white text-slate-900 py-3 font-semibold">Launch Dashboard</button>
-        </Section>
-
-        <Section icon={<Users size={20} />} number="04" title="Groups">
-          <div className="grid sm:grid-cols-2 gap-3 text-sm font-medium text-slate-700">
-            <div className="rounded-2xl bg-indigo-50 p-4"><h3 className="font-bold mb-1">Classroom Hubs</h3>Centralized folders for classes and subjects.</div>
-            <div className="rounded-2xl bg-indigo-50 p-4"><h3 className="font-bold mb-1">Member Roles</h3>Assign leaders, editors, and viewers.</div>
-          </div>
-        </Section>
+      {/* 6-card grid */}
+      <div className="grid md:grid-cols-2 gap-4">
+        {cards.map((card) => (
+          <GuideCard key={card.number} {...card} />
+        ))}
       </div>
 
-      <div className="text-center py-10">
-        <h2 className="text-5xl font-bold tracking-tight text-slate-900 mb-4">Ready to start your journey?</h2>
-        <p className="text-slate-600 font-medium text-lg mb-7">The Scholar environment is designed for clarity. Join thousands of educators and students today.</p>
+      {/* CTA */}
+      <div className="text-center py-8">
+        <h2 className="font-extrabold text-2xl text-gray-900 dark:text-gray-100 mb-2">
+          {t("guide.cta.title")}
+        </h2>
+        <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
+          {t("guide.cta.desc")}
+        </p>
         <div className="flex justify-center gap-3 flex-wrap">
-          <Link href="/quizzes" className="bg-gradient-to-r from-indigo-600 to-purple-500 text-white px-7 py-3 rounded-full font-bold shadow-lg shadow-indigo-500/25 active:scale-95 transition-transform">Create My First Quiz</Link>
-          <Link href="/groups" className="bg-indigo-100 text-indigo-700 px-7 py-3 rounded-full font-bold">Explore Community</Link>
+          <Link
+            href="/quizzes"
+            className="bg-violet-600 hover:bg-violet-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-violet-500/25 transition-colors"
+          >
+            {t("guide.cta.btn")}
+          </Link>
+          <Link
+            href="/groups"
+            className="bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-700 px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors"
+          >
+            {t("guide.cta.btn2")}
+          </Link>
         </div>
-      </div>
-
-      <div className="hidden">
-        <Trophy />
-        <Settings />
-        <Upload />
-        <PlusCircle />
-        <Zap />
-        <ShieldCheck />
       </div>
     </div>
   );

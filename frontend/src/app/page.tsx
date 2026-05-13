@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowRight, Zap, Users, BarChart2, Shield, Repeat, Globe, LogOut, UserCircle, Sparkles, Trophy } from "lucide-react";
+import { ArrowRight, Zap, Users, BarChart2, Shield, Repeat, Globe, LogOut, UserCircle, Sparkles, FileText } from "lucide-react";
 
 const features = [
   {
@@ -53,6 +54,18 @@ const features = [
 export default function Home() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const [quizCount, setQuizCount] = useState<number | null>(null);
+  const [userCount, setUserCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_BASE}/api/v1/health/stats`)
+      .then((r) => r.json())
+      .then((d: { quiz_count: number; user_count: number }) => {
+        setQuizCount(d.quiz_count);
+        setUserCount(d.user_count);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -108,12 +121,44 @@ export default function Home() {
         <div className="rounded-[2rem] bg-white p-3 shadow-sm border border-white/80">
           <div className="rounded-[1.5rem] h-[320px] bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-900 relative overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_65%_30%,rgba(99,102,241,0.45),transparent_60%)]" />
-            <div className="absolute bottom-6 left-6 right-6 rounded-2xl bg-white/90 backdrop-blur-md p-4 border border-white/80">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-full bg-gradient-to-r from-indigo-600 to-purple-500 text-white flex items-center justify-center"><Trophy size={18} /></div>
+
+            {/* Mini quiz question preview */}
+            <div className="absolute top-5 left-5 right-5 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10 p-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-300 mb-2">Ukázka otázky</p>
+              <p className="text-sm font-semibold text-white mb-3 leading-snug">Hlavní město Francie je…?</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                <div className="bg-emerald-500/90 text-white text-xs font-semibold px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-white/30 text-[9px] font-black flex items-center justify-center">A</span> Paříž
+                </div>
+                <div className="bg-white/10 text-white/70 text-xs font-medium px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-white/10 text-[9px] font-black flex items-center justify-center">B</span> Lyon
+                </div>
+                <div className="bg-white/10 text-white/70 text-xs font-medium px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-white/10 text-[9px] font-black flex items-center justify-center">C</span> Nice
+                </div>
+                <div className="bg-white/10 text-white/70 text-xs font-medium px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-white/10 text-[9px] font-black flex items-center justify-center">D</span> Marseille
+                </div>
+              </div>
+            </div>
+
+            {/* Stats card */}
+            <div className="absolute bottom-5 left-5 right-5 rounded-2xl bg-white/90 backdrop-blur-md p-3.5 border border-white/80 flex items-center gap-4">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-r from-indigo-600 to-purple-500 text-white flex items-center justify-center shrink-0"><FileText size={15} /></div>
                 <div>
-                  <p className="text-xs uppercase tracking-wider text-slate-500 font-bold">Top skóre</p>
-                  <p className="text-sm font-semibold text-slate-800">Jan Novák · 98%</p>
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Vytvořených kvízů</p>
+                  <p className="text-lg font-black text-slate-800 leading-none mt-0.5">{quizCount !== null ? quizCount : "—"}</p>
+                </div>
+              </div>
+              <div className="w-px h-10 bg-slate-200" />
+              <div className="flex items-center gap-3 flex-1">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white flex items-center justify-center shrink-0">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Učitelů na platformě</p>
+                  <p className="text-lg font-black text-slate-800 leading-none mt-0.5">{userCount !== null ? userCount : "—"}</p>
                 </div>
               </div>
             </div>
@@ -150,7 +195,37 @@ export default function Home() {
       </section>
 
       <footer className="bg-slate-100/90 border-t border-slate-200 text-slate-500">
-        <div className="max-w-7xl mx-auto px-6 py-8 text-sm">© 2026 Luminescent Scholar. Curating the future of wisdom.</div>
+        <div className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
+          <div>
+            <p className="font-bold text-slate-700 mb-2">Qvízovna</p>
+            <p className="text-slate-500">Kvízová platforma pro moderní školy.</p>
+          </div>
+          <div>
+            <p className="font-bold text-slate-700 mb-2">Produkt</p>
+            <ul className="space-y-1">
+              <li><a href="/quizzes" className="hover:text-slate-700 transition-colors">Kvízy</a></li>
+              <li><a href="/sessions" className="hover:text-slate-700 transition-colors">Spuštění</a></li>
+              <li><a href="/groups" className="hover:text-slate-700 transition-colors">Skupiny</a></li>
+            </ul>
+          </div>
+          <div>
+            <p className="font-bold text-slate-700 mb-2">Zdroje</p>
+            <ul className="space-y-1">
+              <li><a href="/guide" className="hover:text-slate-700 transition-colors">Průvodce</a></li>
+              <li><a href="/import" className="hover:text-slate-700 transition-colors">Import</a></li>
+            </ul>
+          </div>
+          <div>
+            <p className="font-bold text-slate-700 mb-2">Účet</p>
+            <ul className="space-y-1">
+              <li><a href="/login" className="hover:text-slate-700 transition-colors">Přihlásit se</a></li>
+              <li><a href="/register" className="hover:text-slate-700 transition-colors">Registrovat se</a></li>
+            </ul>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-6 pb-6 text-xs text-slate-400 border-t border-slate-200 pt-4">
+          © 2026 Qvízovna. Všechna práva vyhrazena.
+        </div>
       </footer>
     </div>
   );
