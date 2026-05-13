@@ -41,20 +41,17 @@ TABLES = [
     "alembic_version",
 ]
 
-# The role used by the FastAPI backend (see alembic.ini / DATABASE_URL).
-APP_ROLE = "quizik"
-
-
 def upgrade() -> None:
     for table in TABLES:
         op.execute(f'ALTER TABLE "{table}" ENABLE ROW LEVEL SECURITY;')
 
-    # App DB user bypasses RLS so all FastAPI queries continue to work.
-    op.execute(f"ALTER ROLE {APP_ROLE} BYPASSRLS;")
+    # Grant BYPASSRLS to whatever DB user is running migrations (works on
+    # both Supabase and Render without hardcoding the role name).
+    op.execute("DO $$ BEGIN EXECUTE 'ALTER ROLE ' || current_user || ' BYPASSRLS'; END $$;")
 
 
 def downgrade() -> None:
-    op.execute(f"ALTER ROLE {APP_ROLE} NOBYPASSRLS;")
+    op.execute("DO $$ BEGIN EXECUTE 'ALTER ROLE ' || current_user || ' NOBYPASSRLS'; END $$;")
 
     for table in TABLES:
         op.execute(f'ALTER TABLE "{table}" DISABLE ROW LEVEL SECURITY;')
