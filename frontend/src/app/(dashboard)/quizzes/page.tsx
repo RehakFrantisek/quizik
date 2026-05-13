@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { apiClient } from "@/lib/api-client";
@@ -51,8 +51,6 @@ interface Quiz {
     cover_image_url?: string | null;
   };
 }
-
-import { Suspense } from "react";
 
 export default function QuizzesDashboard() {
   return (
