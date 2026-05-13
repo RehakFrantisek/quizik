@@ -203,23 +203,23 @@ export default function Home() {
           <div>
             <p className="font-bold text-slate-700 mb-2">Produkt</p>
             <ul className="space-y-1">
-              <li><a href="/quizzes" className="hover:text-slate-700 transition-colors">Kvízy</a></li>
-              <li><a href="/sessions" className="hover:text-slate-700 transition-colors">Spuštění</a></li>
-              <li><a href="/groups" className="hover:text-slate-700 transition-colors">Skupiny</a></li>
+              <li><Link href="/quizzes" className="hover:text-slate-700 transition-colors">Kvízy</Link></li>
+              <li><Link href="/sessions" className="hover:text-slate-700 transition-colors">Spuštění</Link></li>
+              <li><Link href="/groups" className="hover:text-slate-700 transition-colors">Skupiny</Link></li>
             </ul>
           </div>
           <div>
             <p className="font-bold text-slate-700 mb-2">Zdroje</p>
             <ul className="space-y-1">
-              <li><a href="/guide" className="hover:text-slate-700 transition-colors">Průvodce</a></li>
-              <li><a href="/import" className="hover:text-slate-700 transition-colors">Import</a></li>
+              <li><Link href="/guide" className="hover:text-slate-700 transition-colors">Průvodce</Link></li>
+              <li><Link href="/import" className="hover:text-slate-700 transition-colors">Import</Link></li>
             </ul>
           </div>
           <div>
             <p className="font-bold text-slate-700 mb-2">Účet</p>
             <ul className="space-y-1">
-              <li><a href="/login" className="hover:text-slate-700 transition-colors">Přihlásit se</a></li>
-              <li><a href="/register" className="hover:text-slate-700 transition-colors">Registrovat se</a></li>
+              <li><Link href="/login" className="hover:text-slate-700 transition-colors">Přihlásit se</Link></li>
+              <li><Link href="/register" className="hover:text-slate-700 transition-colors">Registrovat se</Link></li>
             </ul>
           </div>
         </div>
