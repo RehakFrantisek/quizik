@@ -45,13 +45,25 @@ def upgrade() -> None:
     for table in TABLES:
         op.execute(f'ALTER TABLE "{table}" ENABLE ROW LEVEL SECURITY;')
 
-    # Grant BYPASSRLS to whatever DB user is running migrations (works on
-    # both Supabase and Render without hardcoding the role name).
-    op.execute("DO $$ BEGIN EXECUTE 'ALTER ROLE ' || current_user || ' BYPASSRLS'; END $$;")
+    # Try to grant BYPASSRLS; table owners already bypass RLS, so this is
+    # a no-op on Render/Supabase where the app role owns the tables.
+    op.execute("""
+        DO $$ BEGIN
+            EXECUTE 'ALTER ROLE ' || current_user || ' BYPASSRLS';
+        EXCEPTION WHEN insufficient_privilege THEN
+            NULL;
+        END $$;
+    """)
 
 
 def downgrade() -> None:
-    op.execute("DO $$ BEGIN EXECUTE 'ALTER ROLE ' || current_user || ' NOBYPASSRLS'; END $$;")
+    op.execute("""
+        DO $$ BEGIN
+            EXECUTE 'ALTER ROLE ' || current_user || ' NOBYPASSRLS';
+        EXCEPTION WHEN insufficient_privilege THEN
+            NULL;
+        END $$;
+    """)
 
     for table in TABLES:
         op.execute(f'ALTER TABLE "{table}" DISABLE ROW LEVEL SECURITY;')

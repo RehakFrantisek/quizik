@@ -210,8 +210,13 @@ async def get_or_create_google_user(
     email: str,
     display_name: str | None,
     avatar_url: str | None,
+    invitation_code: str | None = None,
 ) -> User:
-    """Find or create a user from Google OAuth.  Returns the user."""
+    """Find or create a user from Google OAuth.  Returns the user.
+
+    Existing users (matched by google_id or email) are logged in without a code.
+    New users require a valid invitation code unless the dev bypass is active.
+    """
     # First try to find by google_id
     stmt = select(User).where(User.google_id == google_id)
     user = (await db.execute(stmt)).scalar_one_or_none()
@@ -229,7 +234,15 @@ async def get_or_create_google_user(
         await db.refresh(user)
         return user
 
-    # Create new user (no password)
+    # New user — require invitation code
+    bypass_invitation = _is_dev_invitation_bypass(invitation_code)
+    if not invitation_code and not bypass_invitation:
+        raise HTTPException(status_code=400, detail="An invitation code is required to register")
+
+    invitation = None
+    if not bypass_invitation:
+        invitation = await _fetch_invitation_code(db, invitation_code, email)
+
     role = "admin" if await _should_bootstrap_admin(db) else "teacher"
     user = User(
         email=email.lower(),
@@ -240,6 +253,12 @@ async def get_or_create_google_user(
         role=role,
     )
     db.add(user)
+    await db.flush()
+
+    if invitation:
+        invitation.used_by_id = user.id
+        invitation.used_at = datetime.utcnow()
+
     await db.commit()
     await db.refresh(user)
     return user
