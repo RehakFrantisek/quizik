@@ -52,7 +52,17 @@ interface Quiz {
   };
 }
 
+import { Suspense } from "react";
+
 export default function QuizzesDashboard() {
+  return (
+    <Suspense fallback={<div className="p-8 text-gray-500">Načítání…</div>}>
+      <QuizzesDashboardInner />
+    </Suspense>
+  );
+}
+
+function QuizzesDashboardInner() {
   const { t, lang } = useLang();
   const router = useRouter();
   const searchParams = useSearchParams();
