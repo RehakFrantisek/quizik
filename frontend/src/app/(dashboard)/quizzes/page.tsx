@@ -566,7 +566,7 @@ function QuizzesDashboard() {
               </button>
             </div>
 
-            <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors mb-5 ${
+            <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors mb-3 ${
               visibilityPublic
                 ? "border-emerald-400 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20"
                 : "border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50"
@@ -578,6 +578,13 @@ function QuizzesDashboard() {
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t("quiz.publicToggleDesc")}</p>
               </div>
             </label>
+
+            {visibilityPublic && quizzes.find((q) => q.id === visibilityQuizId)?.status !== "published" && (
+              <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl px-3 py-2.5 mb-4 text-xs text-amber-700 dark:text-amber-400">
+                <span className="mt-0.5 shrink-0">⚠️</span>
+                <span>{t("quiz.publishRequiredForDiscover")}</span>
+              </div>
+            )}
 
             <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2.5 flex items-center gap-1.5">
               <Tag size={12} /> {t("quiz.tagsLabel")}
